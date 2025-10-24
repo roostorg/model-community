@@ -13,13 +13,13 @@ The ROOST Model Community (RMC) brings together Trust & Safety practitioners usi
       * When adding a new discussion to Evaluations, please Label it with the model  
       * Implementation is organized by model  
       * (Open an Issue to request new categories or Labels\!)   
-  * **Build community-created guides for how to best use specific models or address specific use cases.**   
+  * Build community-created guides for how to best use specific models or address specific use cases.   
     * Aggregate tips and information in [*Discussion*](https://github.com/roostorg/open-models/discussions) threads, then suggest a new guide via [*Issues*](https://github.com/roostorg/open-models/issues).   
     * Or, skip to the fun part and start a new guide by submitting a [*Pull Request*](https://github.com/roostorg/open-models/pulls).  
 * **Improve your safety experience by learning from and with peers tackling similar problems**  
   * Join our bi-weekly office hours\! Share what’s working and what’s not in real time, and connect directly with T\&S peers and RMC model partners. Learn more via the [*ROOST \#safety-models Discord channel*](https://discord.gg/5Csqnw2FSQ).  
 * **Craft the RMC experience**
-  * Help us build a community for using open AI models in Trust & Safety\! If you have ideas of how we can improve the RMC, open an [*Issue*](https://github.com/roostorg/open-models/issues) with the “RMC” Label.  
+  * Help us build a community for using open AI models in Trust & Safety\! If you have ideas of how we can improve the RMC, open an [*Issue*](https://github.com/roostorg/open-models/issues) with the “RMC” Label.
 * **Continue the discussion on the [*\#safety-models ROOST Discord channel*](https://discord.gg/5Csqnw2FSQ)\!**
   * Here, you can ask questions, troubleshoot challenges, celebrate your wins, and find fellow safety enthusiasts.
  
@@ -41,6 +41,8 @@ Additionally, we prefer models that do not have non-commercial licenses and lice
 
 ## RMC Partners
 * OpenAI: gpt-oss-safeguard
+
+To discuss being an RMC Partner, email hello@roost.tools.
 
 ## RMC’s approach to open model collaboration
 
