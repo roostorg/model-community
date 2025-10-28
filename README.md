@@ -17,10 +17,10 @@ The ROOST Model Community (RMC) brings together Trust & Safety practitioners usi
     * Aggregate tips and information in [*Discussion*](https://github.com/roostorg/open-models/discussions) threads, then suggest a new guide via [*Issues*](https://github.com/roostorg/open-models/issues).   
     * Or, skip to the fun part and start a new guide by submitting a [*Pull Request*](https://github.com/roostorg/open-models/pulls).  
 * **Improve your safety experience by learning from and with peers tackling similar problems**  
-  * Join our bi-weekly office hours\! Share what’s working and what’s not in real time, and connect directly with T\&S peers and RMC model partners. Learn more via the [*ROOST \#safety-models Discord channel*](https://discord.gg/5Csqnw2FSQ).  
+  * Join our bi-weekly office hours\! Share what’s working and what’s not in real time, and connect directly with T\&S peers and RMC model partners. Learn more via the [*ROOST \#roost-model-community Discord channel*](https://discord.gg/5Csqnw2FSQ).  
 * **Craft the RMC experience**
   * Help us build a community for using open AI models in Trust & Safety\! If you have ideas of how we can improve the RMC, open an [*Issue*](https://github.com/roostorg/open-models/issues) with the “RMC” Label.
-* **Continue the discussion on the [*\#safety-models ROOST Discord channel*](https://discord.gg/5Csqnw2FSQ)\!**
+* **Continue the discussion on the [*\#roost-model-community ROOST Discord channel*](https://discord.gg/5Csqnw2FSQ)\!**
   * Here, you can ask questions, troubleshoot challenges, celebrate your wins, and find fellow safety enthusiasts.
  
 RMC is open to all, but its purpose and deliverables are focused on developers who are trying to increase the safety of their platform, and are curious how AI models can help. These developers may be in a formal Trust & Safety role at a company, or may be an individual user running a self-hosted platform, like a decentralized social network. 
