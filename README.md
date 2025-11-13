@@ -1,5 +1,19 @@
 # ROOST Model Community
-The ROOST Model Community (RMC) brings together Trust & Safety practitioners using open source AI models to protect online spaces. We share evaluation outcomes and implementation tips as we explore integrating open safety models into T&S workflows. With the support of open safety model creators, we also help them improve and refine their models, similar to the user feedback cycle of open source software. 
+
+The ROOST Model Community (RMC) brings together Trust & Safety practitioners using open source AI models to protect online spaces. We share evaluation outcomes and implementation tips as we explore integrating open safety models into T&S workflows. With the support of open safety model creators, we also help them improve and refine their models, similar to the user feedback cycle of open source software.
+
+## Join Us!
+
+ROOST, our partners, and our community are hard at work to make an amazing space for collaboration, but we can’t do it alone!­ We need **you** to bring your ideas, expertise, and input to build something we can all be proud of. Specifically, we'd be thrilled fo you to join us if you are a:
+
+1. Trust & Safety practicioner
+2. Open safety model creator
+
+Of course we welcome all community members and collaboration, even if you don't fit neatly into either bucket.
+
+### Trust & Safety Practicioners
+
+### Open Model Creators
 
 **Join Us:**
 
