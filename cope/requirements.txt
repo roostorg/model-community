@@ -1,0 +1,29 @@
+# vLLM Server Dependencies for cope-a-9b (Gemma-2-9b + LoRA)
+
+# Setup instructions:
+# python -m venv venv
+# source venv/bin/activate
+#
+# Install torch separately (adjust for your CUDA version):
+# pip install torch==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128
+# pip install "numpy<2"
+#
+# Install flashinfer for Gemma-2 softcapping support:
+# pip install flashinfer-python flashinfer-cubin
+# pip install flashinfer-jit-cache --index-url https://flashinfer.ai/whl/cu128
+#
+# Then install requirements:
+# pip install -r requirements.txt
+
+# Core inference engine with LoRA support
+vllm==0.10.2
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Data validation
+pydantic>=2.0.0
+
+# HTTP client for client.py
+requests>=2.31.0
