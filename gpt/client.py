@@ -6,7 +6,7 @@ import requests
 # Change to user the server API url
 API_URL = "http://localhost:8000/v1/chat/completions"
 SYSTEM_PROMPT = '''You are a policy following content moderator. You will do exactly what the policy says. \
-                 You will always respond as followins \
+                 You will always respond as follows \
                  If policy disallows: "Violating" \
                  If policy allows: "Non-violating"'''
 DEVELOPER_PROMPT = Path(__file__).parent.joinpath("drug_policy.md").read_text()
