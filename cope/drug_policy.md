@@ -117,8 +117,3 @@ This policy provides criteria for identifying content promoting drugs and drug p
 - **Content Refusing to Provide, Manufacture, or Sell Illegal Drugs**: Content where the author declines to deliver, exchange, manufacture, or grow illegal drugs, or declines to provide such instructions
 
 - **Content Rejecting Offers of Illegal Drugs**: Content where the author rejects offers to obtain, buy, or use illegal drugs, or declines to provide such instructions
-
-
-## Always respond as follows: 
-- If above policy disallows, respond with "Violating"
-- If above policy allows, respong with "Non-violating"
