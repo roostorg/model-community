@@ -1,0 +1,70 @@
+{
+  "builder_name": "json",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "openai-moderation-api-evaluation",
+  "dataset_size": 1222579,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/mmathys/openai-moderation-api-evaluation@84e5cf3bcd6acb3dfc70b6760451645872218a3e/samples-1680.jsonl.gz": {
+      "num_bytes": 477573,
+      "checksum": null
+    }
+  },
+  "download_size": 477573,
+  "features": {
+    "prompt": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "S": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "H": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "V": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "HR": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "SH": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "S3": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "H2": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "V2": {
+      "dtype": "int64",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 1700152,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 1222579,
+      "num_examples": 1680,
+      "dataset_name": "openai-moderation-api-evaluation"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
