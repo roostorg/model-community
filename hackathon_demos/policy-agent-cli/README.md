@@ -2,6 +2,8 @@
 
 An agentic tool for iteratively improving content moderation policies through automated evaluation and LLM-powered refinement. Built for the Open Safeguard Hackathon hosted by ROOST and OpenAI.
 
+![Policy Agent CLI in Action](policy-agent-cli.png)
+
 ## Overview
 
 Policy Agent CLI provides an agentic, data-driven approach to optimize content moderation policies for the [GPT-OSS-Safeguard](https://huggingface.co/openai/gpt-oss-safeguard-20b) model. Instead of manually tweaking policy definitions, this tool automates the process:
