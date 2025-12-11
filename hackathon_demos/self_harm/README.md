@@ -41,3 +41,10 @@ We want to quickly flag content that expresses suicidal ideation, self-harm, or 
   - Suicide: precision 1.00, recall 0.97, f1 0.98
   - Non-suicide: precision 0.91, recall 1.00, f1 0.95
 - The red-team set stresses borderline phrasing (humor, past self-harm in remission, passive ideation). High recall on suicide and perfect recall on non-suicide indicate strong policy adherence; remaining misses were subtle passive-ideation wording. These results support cautious real-world use with monitoring and periodic prompt/model checks.
+
+## What We Learned / Takeaways
+- Base model strength: `openai/gpt-oss-20b` delivered slightly better F1/accuracy than the safeguard variant while still following the safety prompt closely.
+- Policy-following: Both models adhered well to the binary 0/1 instruction; remaining errors clustered around passive ideation or nuanced wording.
+- Red-team value: Curated stress tests (humor, remission, passive ideation) surfaced edge failures that standard metrics miss; keep expanding this set for deployment.
+- Human-in-the-loop: Metrics are strong enough for triage/queueing, but moderator oversight and escalation rules are essential for real-world use.
+- Data dependence: Results are specific to the Kaggle “Suicide Watch” mix; monitor drift and retrain/retest if the content distribution shifts.
