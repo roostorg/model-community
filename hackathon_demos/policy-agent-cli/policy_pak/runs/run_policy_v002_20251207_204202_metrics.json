@@ -1,0 +1,90 @@
+{
+  "S": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "tp": 4,
+    "fp": 0,
+    "tn": 10,
+    "fn": 0,
+    "valid_samples": 14
+  },
+  "H": {
+    "accuracy": 1.0,
+    "precision": 0,
+    "recall": 0,
+    "f1": 0,
+    "tp": 0,
+    "fp": 0,
+    "tn": 12,
+    "fn": 0,
+    "valid_samples": 12
+  },
+  "V": {
+    "accuracy": 0.9642857142857143,
+    "precision": 1.0,
+    "recall": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 0,
+    "tn": 26,
+    "fn": 1,
+    "valid_samples": 28
+  },
+  "HR": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "tn": 27,
+    "fn": 0,
+    "valid_samples": 28
+  },
+  "SH": {
+    "accuracy": 0.9642857142857143,
+    "precision": 1.0,
+    "recall": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 0,
+    "tn": 26,
+    "fn": 1,
+    "valid_samples": 28
+  },
+  "S3": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "tn": 13,
+    "fn": 0,
+    "valid_samples": 14
+  },
+  "H2": {
+    "accuracy": 1.0,
+    "precision": 0,
+    "recall": 0,
+    "f1": 0,
+    "tp": 0,
+    "fp": 0,
+    "tn": 12,
+    "fn": 0,
+    "valid_samples": 12
+  },
+  "V2": {
+    "accuracy": 0.9642857142857143,
+    "precision": 1.0,
+    "recall": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 0,
+    "tn": 26,
+    "fn": 1,
+    "valid_samples": 28
+  }
+}
