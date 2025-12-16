@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpt_oss_utils_dactile"
+version = "0.1.0"
+description = "Dactile's utils for exploring GPT-OSS-Safeguard"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "tqdm",
+    "openai-harmony",
+    "huggingface_hub",
+    "diskcache",
+    "numpy",
+    "pandas",
+    "scipy",
+    "pingouin",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+local = [
+    "transformers",
+    "torch",
+]
+
