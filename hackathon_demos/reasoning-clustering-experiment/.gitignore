@@ -1,0 +1,11 @@
+# Environment
+.env
+.venv/
+__pycache__/
+
+# Data (generated)
+data/
+
+# IDE
+.idea/
+.vscode/
