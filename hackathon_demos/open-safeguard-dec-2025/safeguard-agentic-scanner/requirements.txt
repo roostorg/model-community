@@ -1,0 +1,7 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+streamlit==1.40.2
+requests==2.32.3
+ollama==0.1.8
+python-dotenv==1.0.1
