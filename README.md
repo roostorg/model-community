@@ -24,7 +24,7 @@ ROOST, our partners, and our community are hard at work to make an amazing space
 
 - **[Join our Discord](https://discord.gg/5Csqnw2FSQ) for real-time chat with other practicioners and model creators**. We're fairly active but you can engage exactly as much or little as works for you. It's a great less-formal and faster paced environment to share links, ask questions, etc.
 
-- **[Join our office hours](https://github.com/roostorg/model-community/discussions/categories/announcements) to connect directly with T&S peers and RMC model partners**. Get some face-to-face time, discuss what's working, share ideas, and more.
+- **[Join our office hours](https://github.com/roostorg/model-community/discussions/categories/office-hours) to connect directly with T&S peers and RMC model partners**. Get some face-to-face time, discuss what's working, share ideas, and more.
  
 The RMC is open to all, but we're focused primarily on developers who are trying to increase the safety of their platforms, and are curious how AI models can help. These developers may be in a formal trust & safety role at a company, or may be an individual user running a self-hosted platform like a decentralized social network.
 
