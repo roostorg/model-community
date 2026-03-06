@@ -1,6 +1,6 @@
-# Projects & Hackathon Demos
+# Other Projects
 
-A community space for sharing ideas, samples, and demos created at RMC hackathons! Please open a pull request with your demo in its own folder under the appropriate folder for the hackathon you attended. If possible, please provide a README in your folder describing the demo and how to use it.
+Interesting demos that are not RMC-model-specific. Please open a pull request with your demo in its own folder. If possible, please provide a README in your folder describing the demo and how to use it.
 
 ## Licensing
 

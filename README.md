@@ -2,6 +2,18 @@
 
 The ROOST Model Community (RMC) brings together trust & safety practitioners with open safety model creators. We share evaluation outcomes, implementation tips, and other forms of feedback as we explore using and integrating these models into T&S workflows so that these models can be continuously improved and made more useful.
 
+## This repo
+
+Right now this repository serves as the home of our GitHub Discussions and issues, but we'd love to expand it to serve as a hub of resources. For example, we're interested in community-created guides for how to best use specific models or address specific use cases. If you'd like to contribute but don't know if it's something that fits, feel free to [open an issue](https://github.com/roostorg/model-community/issues)!
+
+### Navigating this repo
+
+You can browse resources directly on GitHub:
+
+- [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to the open-weight safety model from OpenAI
+- [projects/](projects): Interesting demos that are not RMC-model-specific
+- [resources/](resources): Everything else!
+
 ## Join Us!
 
 ROOST, our partners, and our community are hard at work to make an amazing space for collaboration, but we can’t do it alone!­ We need **you** to bring your ideas, expertise, and input to build something we can all be proud of.
@@ -17,11 +29,6 @@ ROOST, our partners, and our community are hard at work to make an amazing space
 The RMC is open to all, but we're focused primarily on developers who are trying to increase the safety of their platforms, and are curious how AI models can help. These developers may be in a formal trust & safety role at a company, or may be an individual user running a self-hosted platform like a decentralized social network.
 
 Developers who are focused on _creating_ open safety models are part of this ecosystem, but deeply engaging in that is a separate field in AI/ML engineering and not our primary purpose.
-
-## This repo
-
-Right now this repository serves as the home of our GitHub Discussions and issues, but we'd love to expand it to serve as a hub of resources. For example, we're interested in community-created guides for how to best use specific models or address specific use cases. If you'd like to contribute but don't know if it's something that fits, feel free to [open an issue](https://github.com/roostorg/model-community/issues)!
-
 
 ## What’s an “open safety model”?
 
