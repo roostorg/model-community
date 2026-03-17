@@ -1,0 +1,7 @@
+# Other Projects
+
+Interesting demos that are not RMC-model-specific. Please open a pull request with your demo in its own folder. If possible, please provide a README in your folder describing the demo and how to use it.
+
+## Licensing
+
+Contributions here are licensed under Apache 2 (code) and CC-by-4 (documentation).

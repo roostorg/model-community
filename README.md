@@ -2,6 +2,16 @@
 
 The ROOST Model Community (RMC) brings together trust & safety practitioners with open safety model creators. We share evaluation outcomes, implementation tips, and other forms of feedback as we explore using and integrating these models into T&S workflows so that these models can be continuously improved and made more useful.
 
+## Navigating this repo
+
+This repository serves as the home of our GitHub Discussions and issues, plus a growing hub of resources. We're always interested in contributions, e.g. community-created guides for how to best use specific models or address specific use cases. If you'd like to contribute but don't know if it's something that fits, feel free to [open an issue](https://github.com/roostorg/model-community/issues)!
+
+You can browse the current resources directly on GitHub:
+
+- [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to the open-weight safety model from OpenAI
+- [projects/](projects): Interesting demos that are not RMC-model-specific
+- [resources/](resources): Everything else!
+
 ## Join Us!
 
 ROOST, our partners, and our community are hard at work to make an amazing space for collaboration, but we can’t do it alone!­ We need **you** to bring your ideas, expertise, and input to build something we can all be proud of.
@@ -12,16 +22,11 @@ ROOST, our partners, and our community are hard at work to make an amazing space
 
 - **[Join our Discord](https://discord.gg/5Csqnw2FSQ) for real-time chat with other practicioners and model creators**. We're fairly active but you can engage exactly as much or little as works for you. It's a great less-formal and faster paced environment to share links, ask questions, etc.
 
-- **[Join our office hours](https://github.com/roostorg/model-community/discussions/categories/announcements) to connect directly with T&S peers and RMC model partners**. Get some face-to-face time, discuss what's working, share ideas, and more.
+- **[Join our office hours](https://github.com/roostorg/model-community/discussions/categories/office-hours) to connect directly with T&S peers and RMC model partners**. Get some face-to-face time, discuss what's working, share ideas, and more.
  
 The RMC is open to all, but we're focused primarily on developers who are trying to increase the safety of their platforms, and are curious how AI models can help. These developers may be in a formal trust & safety role at a company, or may be an individual user running a self-hosted platform like a decentralized social network.
 
 Developers who are focused on _creating_ open safety models are part of this ecosystem, but deeply engaging in that is a separate field in AI/ML engineering and not our primary purpose.
-
-## This repo
-
-Right now this repository serves as the home of our GitHub Discussions and issues, but we'd love to expand it to serve as a hub of resources. For example, we're interested in community-created guides for how to best use specific models or address specific use cases. If you'd like to contribute but don't know if it's something that fits, feel free to [open an issue](https://github.com/roostorg/model-community/issues)!
-
 
 ## What’s an “open safety model”?
 
