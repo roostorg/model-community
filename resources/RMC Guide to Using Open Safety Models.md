@@ -67,14 +67,22 @@ This distinction does not cover the long list of specialized vendors who offer h
 ### Getting Started: A Step-by-Step Guide to Running Open Models
 
 - **Decide which model to use.** This should factor in questions such as the model's license (are there any restrictions that are prohibitive to you?), the model's size (will its latency be sufficient?), and the model's performance (often indicated via a model card or evaluation results).
+
 - **Determine whether you want to run the model locally or via hosted inference API.** Local models afford full data privacy control and configurability, while APIs are often easier to set up.
+
   - This decision affects other considerations, such as latency – running the model locally on a Mac without a cloud GPU will likely lead to slower times than using an inference provider or setting up that GPU.
+
 - **Test and refine the model before deploying.** Make sure that your model is performing sufficiently well on your policies before deploying it! To do this, you may want to:
+
   - Use or build a structured, high quality "golden" dataset to compare model performance against. This can often be a time and cost intensive practice, so don't be afraid to ask RMC peers if they have datasets to share!
+
   - Identify what metrics you are most worried about (e.g., precision vs. recall).
+
   - Understand whether errors stem from model performance or policy inconsistency.
+
   - Consider further model fine-tuning (if cost and time allow). Because out of the box classifiers are not customized to your specific policies, they may not always perform as you'd like without additional fine-tuning.
-- For developers worried about managing costs, consider starting your T&S workflows with smaller, more lightweight models. Many basic, high volume tasks can be accomplished quickly and efficiently by smaller models. Consider where you really need to use a larger, more complex model. Validate your approach by running candidate models on sample batches of data before committing to a full deployment, and adjust your approach based on the results you find.
+
+For developers worried about managing costs, consider starting your T&S workflows with smaller, more lightweight models. Many basic, high volume tasks can be accomplished quickly and efficiently by smaller models. Consider where you really need to use a larger, more complex model. Validate your approach by running candidate models on sample batches of data before committing to a full deployment, and adjust your approach based on the results you find.
 
 ---
 
