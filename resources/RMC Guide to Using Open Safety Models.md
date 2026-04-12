@@ -7,8 +7,11 @@ A guide from the [ROOST Model Community](https://github.com/roostorg/model-commu
 Modern trust & safety (T&S) teams require solutions to four functional archetypes, as outlined by the [DIRE framework](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5369158):
 
 - **Detection:** Identifying potential risks in accounts, behaviors, and content through behavioral signals and existing databases (such as via hash matching, which identifies known threats based on their digital fingerprint). This is how you identify when something has gone wrong.
+
 - **Investigation:** Analyzing broad attack patterns by evaluating context beyond individual entities, or diving deep into a single incident. This is how you understand why exactly things have gone wrong.
+
 - **Review:** Assessing content against policies to determine appropriate next steps. This is how you determine the best course of action in nuanced cases.
+
 - **Enforcement:** Taking actions and meeting reporting obligations. This is how you remove the threat from your platform.
 
 AI models fine-tuned for safety can support teams across all four quadrants, but they're most well-suited to Detection and Review. Historically, detection tooling has been broadly commercially available. However, existing tools have failed on two major fronts. They are often (1) highly manual or reliant on user reporting and (2) fragmented or hard to integrate across internal tools and vendors.
