@@ -27,10 +27,14 @@ These use cases have only expanded as AI capabilities have improved beyond tradi
 There are three particularly common use cases for modern open models in a Trust & Safety setting, although this is far from an exhaustive list:
 
 1. **Content Detection:** You can use models to classify content according to an existing policy, which has historically been the typical use case for classifiers and often results in a binary decision (e.g., "policy violation" vs. "acceptable").
+
 2. **Investigation & Review Support:** You can use models to support your investigation and review operations (whether automated or human-led), especially with reasoning models that can better handle abstracted or pattern-matched threats.
-  - *Case Study:* Check out [Phoebe](https://github.com/haileyok/phoebe), an agentic solution that automates the entire investigation process by analyzing threat patterns and writing new rules to stop those threats via ROOST's Osprey engine.
+
+   - *Case Study:* Check out [Phoebe](https://github.com/haileyok/phoebe), an agentic solution that accelerates the entire investigation process by analyzing threat patterns and suggesting new rules to stop those threats via ROOST's Osprey engine.
+
 3. **Iterative Improvement:** You can use models to iterate on your existing policies and processes, especially as you work to build policies that are increasingly interpretable by both human safety teams and AI.
-  - *Case Study:* Participants at the Open Safeguard Hackathon built a [Policy Agent CLI](https://github.com/roostorg/model-community/tree/main/gpt-oss-safeguard/projects/open-safeguard-dec-2025/policy-agent-cli) to test, improve, and iterate on the performance of specific policies.
+
+   - *Case Study:* Participants at the Open Safeguard Hackathon built a [Policy Agent CLI](https://github.com/roostorg/model-community/tree/main/gpt-oss-safeguard/projects/open-safeguard-dec-2025/policy-agent-cli) to test, improve, and iterate on the performance of specific policies.
 
 These three use cases are an oversimplification. They are also not mutually exclusive (and in fact often intersect). For example, platforms are increasingly considering a two-pronged approach to using safety models. The first model, usually smaller and lower latency, is a first layer of defense that renders judgments on easy to classify cases. Any edge cases that raise uncertainty can then be routed to the second model, often a higher performance model with reasoning capabilities, which proposes a recommended action for human review. The data from those decisions can (and should) then be used to iterate on policies.
 
