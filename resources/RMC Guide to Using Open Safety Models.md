@@ -1,4 +1,6 @@
-# A ROOST Model Community Guide to Using Open Safety Models
+# Using Open Safety Models
+
+A guide from the [ROOST Model Community](https://github.com/roostorg/model-community)
 
 ## Setting the Stage: Open AI Models in the Modern T&S Landscape
 
