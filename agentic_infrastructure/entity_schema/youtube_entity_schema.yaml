@@ -1,0 +1,1411 @@
+# YouTube Entity Schema for Trust & Safety
+# Sources: YouTube Data API v3, Live Streaming API, Reporting API, Analytics API, Content ID API, PubSubHubbub
+# Last updated: 2026-04-17
+# All fields sourced from official Google for Developers documentation.
+
+meta:
+  platform: youtube
+  apis:
+    - name: data_api_v3
+      docs: https://developers.google.com/youtube/v3/docs
+    - name: live_streaming_api
+      docs: https://developers.google.com/youtube/v3/live/docs
+    - name: reporting_api
+      docs: https://developers.google.com/youtube/reporting
+    - name: analytics_api
+      docs: https://developers.google.com/youtube/analytics
+    - name: content_id_api
+      docs: https://developers.google.com/youtube/partner
+    - name: pubsubhubbub
+      docs: https://developers.google.com/youtube/v3/guides/push_notifications
+
+# ============================================================
+# IDENTITY & ACCOUNT
+# ============================================================
+entities:
+
+  Channel:
+    source: data_api_v3
+    description: >
+      Top-level account entity. A YouTube Channel represents a user, brand, or
+      organization. Owns all uploaded content, playlists, subscriptions, and
+      comments authored.
+    id_field: channelId            # e.g., "UCxxx..."
+    key_fields:
+      snippet:
+        - title
+        - description
+        - publishedAt
+        - country
+        - customUrl
+      status:
+        - privacyStatus              # public | unlisted | private
+        - isLinked                   # linked to Google Account
+        - longUploadsStatus          # upload length eligibility
+        - madeForKids                # YouTube's determination
+        - selfDeclaredMadeForKids    # creator self-declared (owner-only)
+      statistics:
+        - viewCount
+        - subscriberCount            # may be hidden
+        - videoCount
+        - hiddenSubscriberCount
+      contentDetails.relatedPlaylists:
+        - likes                      # user's liked videos playlist
+        - favorites                  # deprecated; still returned for legacy channels
+        - uploads                    # uploads playlist
+        # watchHistory / watchLater were removed from the public API.
+      brandingSettings:
+        - channel.keywords
+        - channel.defaultLanguage
+        - channel.country
+    belongs_to: []                   # top-level
+    has_many:
+      - Video                        # via uploads playlist
+      - Playlist
+      - Subscription
+      - Comment                      # authored
+      - ChannelSection
+      - Activity
+      - Membership                   # if memberships enabled
+      - LiveBroadcast
+      - LiveStream
+    references: []
+    sensitivity: high
+    safety_notes: |
+      Status fields drive age-gating, regional restrictions, monetization.
+      madeForKids + selfDeclaredMadeForKids combination is COPPA-relevant.
+      country + defaultLanguage drive jurisdictional routing.
+
+  Subscription:
+    source: data_api_v3
+    description: A subscriber relationship between two Channels (directional).
+    id_field: subscriptionId
+    key_fields:
+      - snippet.publishedAt
+      - snippet.channelId            # subscriber
+      - snippet.resourceId.channelId # subscribed-to
+      - contentDetails.activityType  # all | uploads
+      - contentDetails.newItemCount
+      - subscriberSnippet.channelId
+    belongs_to:
+      - Channel                      # subscriber (snippet.channelId)
+      - Channel                      # subscribed-to (resourceId.channelId)
+    has_many: []
+    references:
+      - Channel
+    sensitivity: medium
+    safety_notes: |
+      Bulk subscriptions from many accounts to one target = likely bot ring.
+      activityType mismatch with uploader cadence = suspicious.
+
+  Membership:
+    source: data_api_v3
+    description: >
+      A user's paid membership to a creator's channel. Returned only to
+      authorized channel owners.
+    id_field: memberId
+    key_fields:
+      - snippet.creatorChannelId
+      - snippet.memberDetails.channelId
+      - snippet.memberDetails.displayName
+      - snippet.memberDetails.profileImageUrl
+      - snippet.membershipsDuration.memberSince
+      - snippet.membershipsDuration.memberTotalDurationMonths
+      - snippet.membershipsDurationAtLevel[]    # level, memberSince per tier
+    belongs_to:
+      - Channel                      # creator
+    has_many: []
+    references:
+      - Channel                      # member
+      - MembershipsLevel
+    sensitivity: high
+    safety_notes: |
+      Memberships list reveals supporter base & funding. Rapid churn
+      or gifted memberships may mask astroturfing.
+
+  MembershipsLevel:
+    source: data_api_v3
+    description: A tier definition for channel memberships.
+    id_field: membersLevelId
+    key_fields:
+      - snippet.creatorChannelId
+      - snippet.levelDetails.displayName
+      - snippet.creationDate
+    belongs_to:
+      - Channel                      # creator
+    has_many:
+      - Membership                   # at this level
+    references: []
+    sensitivity: low
+
+# ============================================================
+# CONTENT CONTAINERS
+# ============================================================
+
+  Video:
+    source: data_api_v3
+    description: >
+      Primary content entity. Covers uploaded VOD, scheduled/live/completed
+      broadcasts, and Shorts.
+    id_field: videoId                # e.g., "dQw4w9WgXcQ"
+    key_fields:
+      snippet:
+        - title
+        - description
+        - tags
+        - categoryId
+        - liveBroadcastContent       # none | upcoming | live | completed
+        - defaultLanguage            # BCP-47
+        - defaultAudioLanguage
+        - publishedAt
+        - channelId
+        - channelTitle
+      contentDetails:
+        - duration                   # ISO 8601
+        - contentRating              # mpaaRating, tvpgRating, and many more
+        - regionRestriction.allowed
+        - regionRestriction.blocked
+        - caption                    # captions available
+        - licensedContent
+        - projection                 # rectangular | 360
+      status:
+        - uploadStatus               # deleted | failed | processed | rejected | uploaded
+        - privacyStatus              # public | unlisted | private
+        - license                    # youtube | creativeCommon
+        - embeddable
+        - publicStatsViewable
+        - madeForKids
+        - selfDeclaredMadeForKids
+        - failureReason              # see enums; set when uploadStatus=failed
+        - rejectionReason            # see enums; set when uploadStatus=rejected (safety-critical)
+      statistics:
+        - viewCount
+        - likeCount                  # may be hidden
+        - dislikeCount               # deprecated
+        - commentCount
+      topicDetails:
+        - topicIds
+        - relevantTopicIds
+      recordingDetails:
+        - recordingDate
+        - location.latitude          # deprecated (Google Maps API retirement)
+        - location.longitude         # deprecated
+        - location.altitude          # deprecated (since 2018-07-09)
+        - locationDescription        # deprecated
+      fileDetails:                   # owner-auth only (youtube.force-ssl scope)
+        - fileName
+        - fileSize
+        - fileType
+        - container
+        - videoStreams
+        - audioStreams
+      processingDetails:              # owner-auth only
+        - processingStatus
+        - processingProgress
+        - processingFailureReason
+      suggestions:                    # owner-auth only
+        - processingHints
+        - tagSuggestions
+        - editorSuggestions
+      liveStreamingDetails:
+        - actualStartTime
+        - actualEndTime
+        - scheduledStartTime
+        - scheduledEndTime
+        - concurrentViewers
+        - activeLiveChatId
+      localizations:                 # per-language title/description
+      paidProductPlacementDetails:
+        - hasPaidProductPlacement
+    belongs_to:
+      - Channel
+    has_many:
+      - Comment                      # via commentThreads
+      - CommentThread
+      - Caption
+      - Claim                        # Content ID
+      - LiveBroadcast                # if livestream
+    references:
+      - VideoCategory                # via categoryId
+      - Channel                      # channelId
+    sensitivity: high
+    safety_notes: |
+      uploadStatus + rejectionReason track moderation outcomes.
+      contentRating drives age-gating and geographic compliance.
+      madeForKids vs selfDeclaredMadeForKids mismatch = COPPA audit signal.
+      liveBroadcastContent=live = real-time moderation window.
+
+  Playlist:
+    source: data_api_v3
+    description: Ordered list of videos owned by a channel.
+    id_field: playlistId
+    key_fields:
+      - snippet.title
+      - snippet.description
+      - snippet.tags
+      - snippet.channelId
+      - snippet.defaultLanguage
+      - snippet.publishedAt
+      - status.privacyStatus         # public | unlisted | private
+      - contentDetails.itemCount
+    belongs_to:
+      - Channel
+    has_many:
+      - PlaylistItem
+    references: []
+    sensitivity: medium
+
+  PlaylistItem:
+    source: data_api_v3
+    description: A single video entry inside a playlist.
+    id_field: playlistItemId
+    key_fields:
+      - snippet.playlistId
+      - snippet.position
+      - snippet.resourceId.videoId
+      - snippet.videoOwnerChannelId  # may differ from playlist owner
+      - snippet.channelId            # playlist owner
+      - contentDetails.videoId
+      - contentDetails.startAt       # ISO 8601 duration
+      - contentDetails.endAt
+      - contentDetails.note          # curator note, not displayed
+      - status.privacyStatus
+    belongs_to:
+      - Playlist
+      - Video                        # via resourceId.videoId
+    has_many: []
+    references:
+      - Video
+      - Channel
+    sensitivity: low
+    safety_notes: |
+      videoOwnerChannelId != channelId = cross-channel curation
+      (possible promotion manipulation). startAt/endAt allows
+      out-of-context trimming.
+
+  ChannelSection:
+    source: data_api_v3
+    description: A configurable section on a channel's homepage.
+    id_field: channelSectionId
+    key_fields:
+      - snippet.type                 # see enum
+      - snippet.channelId
+      - snippet.title
+      - snippet.position
+      - snippet.defaultLanguage
+      - contentDetails.playlists
+      - contentDetails.channels
+    belongs_to:
+      - Channel
+    has_many:
+      - Playlist                     # via contentDetails.playlists
+    references:
+      - Channel                      # via contentDetails.channels
+    sensitivity: low
+
+  Caption:
+    source: data_api_v3
+    description: Subtitle/closed-caption track associated with a video.
+    id_field: captionId
+    key_fields:
+      - snippet.videoId
+      - snippet.language             # BCP-47
+      - snippet.trackKind            # standard | ASR | forced
+      - snippet.name
+      - snippet.audioTrackType       # primary | descriptive
+      - snippet.isCC
+      - snippet.isLarge
+      - snippet.isEasyReader
+      - snippet.isDraft
+      - snippet.isAutoSynced
+      - snippet.status               # serving | syncing | failed
+      - snippet.failureReason
+      - snippet.lastUpdated
+    belongs_to:
+      - Video
+    has_many: []
+    references:
+      - Video
+    sensitivity: medium
+    safety_notes: |
+      trackKind=ASR (auto) may misinterpret slurs/hate speech.
+      Language mismatch with video default = potential context hiding.
+
+  Thumbnail:
+    source: data_api_v3
+    description: >
+      Embedded image resource on Video, Channel, Playlist, PlaylistItem.
+      Not addressable standalone.
+    id_field: null                   # embedded
+    key_fields:
+      - default.url
+      - default.width
+      - default.height
+      - medium.url
+      - high.url
+      - standard.url
+      - maxres.url
+    belongs_to:
+      - Video
+      - Channel
+      - Playlist
+      - PlaylistItem
+    has_many: []
+    references: []
+    sensitivity: medium
+    safety_notes: |
+      Custom thumbnails (maxres) may mismatch video content (clickbait,
+      CSAM risk). URL itself can be a phishing/malware vector.
+
+  Watermark:
+    source: data_api_v3
+    description: A single branding watermark shown on all videos of a channel.
+    id_field: null                   # one per channel
+    key_fields:
+      - imageUrl
+      - position.cornerPosition      # topLeft | topRight | bottomLeft | bottomRight
+      - timing.type                  # offsetFromStart | offsetFromEnd
+      - timing.offsetMs
+      - timing.durationMs
+      - targetChannelId
+    belongs_to:
+      - Channel
+    has_many: []
+    references: []
+    sensitivity: medium
+
+# ============================================================
+# ENGAGEMENT & DISCUSSION
+# ============================================================
+
+  CommentThread:
+    source: data_api_v3
+    description: A top-level comment plus its replies container.
+    id_field: commentThreadId
+    key_fields:
+      - snippet.channelId
+      - snippet.videoId
+      - snippet.topLevelComment      # embedded Comment
+      - snippet.canReply
+      - snippet.totalReplyCount
+      - snippet.isPublic
+    belongs_to:
+      - Video
+      - Channel
+    has_many:
+      - Comment                      # replies
+    references:
+      - Comment                      # topLevelComment
+    sensitivity: medium
+
+  Comment:
+    source: data_api_v3
+    description: A single user comment, top-level or reply.
+    id_field: commentId
+    key_fields:
+      - snippet.textDisplay          # HTML-safe
+      - snippet.textOriginal         # raw
+      - snippet.authorDisplayName
+      - snippet.authorChannelId      # may be absent (deleted account)
+      - snippet.authorChannelUrl
+      - snippet.likeCount
+      - snippet.moderationStatus     # owner-only: published | heldForReview | likelySpam | rejected
+      - snippet.parentId             # for replies
+      - snippet.videoId
+      - snippet.channelId
+      - snippet.canReply
+      - snippet.canDelete
+      - snippet.canRate
+      - snippet.viewerRating
+      - snippet.publishedAt
+      - snippet.updatedAt
+    belongs_to:
+      - Video
+      - CommentThread                # if reply
+      - Channel                      # author
+    has_many: []
+    references:
+      - Video
+      - Channel
+      - Comment                      # parent (self-ref)
+    sensitivity: high
+    safety_notes: |
+      moderationStatus is READ-ONLY via API, set via comments.setModerationStatus.
+      Only channel/video owner can read moderationStatus (OAuth-scoped).
+      authorChannelId absent = deleted / anonymous user.
+
+  Activity:
+    source: data_api_v3
+    description: >
+      Channel action log (uploads, likes, favorites, subscriptions,
+      playlist adds). Deprecated for several event types but still
+      returned.
+    id_field: activityId
+    key_fields:
+      - snippet.channelId
+      - snippet.publishedAt
+      - snippet.type                 # see enum
+      - snippet.title
+      - snippet.description
+      - contentDetails.upload.videoId
+      - contentDetails.like.resourceId
+      - contentDetails.favorite.resourceId
+      - contentDetails.comment.resourceId
+      - contentDetails.subscription.resourceId
+      - contentDetails.playlistItem.resourceId
+      - contentDetails.playlistItem.playlistAddedBy
+      - contentDetails.recommendation.resourceId
+      - contentDetails.recommendation.reason
+      - contentDetails.recommendation.seedResourceId
+      - contentDetails.channelItem.resourceId
+    belongs_to:
+      - Channel
+    has_many: []
+    references:
+      - Video
+      - Channel
+      - Playlist
+    sensitivity: medium
+    safety_notes: |
+      Burst activity (e.g., 100 likes/min) = bot indicator.
+      Activity feed is one of the few ways to see per-channel event stream.
+
+# ============================================================
+# LIVE STREAMING
+# ============================================================
+
+  LiveBroadcast:
+    source: live_streaming_api
+    description: The metadata/scheduling envelope for a live stream.
+    id_field: broadcastId
+    key_fields:
+      snippet:
+        - title
+        - description
+        - channelId
+        - liveChatId                 # reference to LiveChat
+        - scheduledStartTime
+        - scheduledEndTime
+        - actualStartTime
+        - actualEndTime
+        - publishedAt
+      status:
+        - lifeCycleStatus            # see enum (8 values)
+        - privacyStatus              # public | unlisted | private
+        - recordingStatus            # notRecording | recording
+        - liveStatus                 # unknown | live | upcoming | completed
+        - madeForKids
+        - selfDeclaredMadeForKids
+      contentDetails:
+        - boundStreamId              # linked LiveStream
+        - monitorStream.enableMonitorStream
+        - monitorStream.broadcastStreamDelayMs
+        - enableEmbed
+        - startWithSlate
+        - enableAutoStart
+        - enableAutoStop
+        - enableDvr
+        - enableContentEncryption
+        - enableLowLatency
+        - projection                 # rectangular | 360
+        - latencyPreference          # normal | low | ultraLow
+        - enableClosedCaptions
+        - closedCaptionsType         # closedCaptionsDisabled | closedCaptionsHttpPost | closedCaptionsEmbedded
+      statistics:
+        - concurrentViewers
+        - totalChatCount
+    belongs_to:
+      - Channel
+    has_many:
+      - LiveChatMessage              # via liveChatId
+      - LiveChatBan
+      - LiveChatModerator
+    references:
+      - LiveStream                   # via boundStreamId
+    sensitivity: high
+    safety_notes: |
+      lifeCycleStatus=live → real-time moderation window.
+      enableLowLatency + enableDvr affect how long a harmful clip stays
+      reachable. monitorStream.broadcastStreamDelayMs = safety delay control.
+
+  LiveStream:
+    source: live_streaming_api
+    description: The ingestion endpoint (RTMP/DASH) bound to a LiveBroadcast.
+    id_field: liveStreamId
+    key_fields:
+      - snippet.title
+      - snippet.description
+      - snippet.channelId
+      - snippet.publishedAt
+      - cdn.ingestionType            # rtmp (incl. RTMPS) | dash | hls
+      - cdn.ingestionInfo.streamName
+      - cdn.ingestionInfo.ingestionAddress
+      - cdn.ingestionInfo.rtmpsIngestionAddress
+      - cdn.ingestionInfo.backupIngestionAddress
+      - cdn.resolution
+      - cdn.frameRate
+      - cdn.format
+      - contentDetails.isReusable
+      - contentDetails.closedCaptionsIngestionUrl
+      - status.streamStatus          # created | ready | active | inactive | error
+      - status.healthStatus.status   # good | ok | bad | noData
+      - status.healthStatus.lastUpdateTimeSeconds
+      - status.healthStatus.configurationIssues
+    belongs_to:
+      - Channel
+    has_many: []
+    references:
+      - LiveBroadcast                # bound via boundStreamId
+    sensitivity: high
+
+  LiveChatMessage:
+    source: live_streaming_api
+    description: A single event in a live chat (not only text messages).
+    id_field: messageId
+    key_fields:
+      snippet:
+        - liveChatId
+        - authorChannelId
+        - displayMessage             # may be null (TOMBSTONE, CHAT_ENDED)
+        - hasDisplayContent
+        - publishedAt
+        - type                       # see LiveChatMessage.type enum
+        - textMessageDetails.messageText
+        - messageDeletedDetails.deletedMessageId
+        - userBannedDetails.bannedUserDetails
+        - userBannedDetails.banType
+        - userBannedDetails.banDurationSeconds
+        - superChatDetails.amountMicros
+        - superChatDetails.currency
+        - superChatDetails.tier
+        - superChatDetails.userComment
+        - superStickerDetails.amountMicros
+        - superStickerDetails.currency
+        - superStickerDetails.tier
+        - superStickerDetails.superStickerMetadata
+        - pollDetails.metadata
+        - membershipGiftingDetails.giftMembershipsCount
+        - membershipGiftingDetails.giftMembershipsLevelName
+        - giftMembershipReceivedDetails.gifterChannelId
+        - giftMembershipReceivedDetails.memberLevelName
+        - giftMembershipReceivedDetails.associatedMembershipGiftingMessageId
+        - newSponsorDetails.isUpgrade
+        - newSponsorDetails.memberLevelName
+        - memberMilestoneChatDetails.memberLevelName
+        - memberMilestoneChatDetails.memberMonth
+        - memberMilestoneChatDetails.userComment
+      authorDetails:
+        - channelId
+        - channelUrl
+        - displayName
+        - profileImageUrl
+        - isVerified
+        - isChatOwner
+        - isChatSponsor
+        - isChatModerator
+    belongs_to:
+      - LiveBroadcast                # via liveChatId
+      - Channel                      # author
+    has_many: []
+    references:
+      - Channel
+    sensitivity: high
+    safety_notes: |
+      Primary real-time moderation target. displayMessage null on
+      TOMBSTONE / CHAT_ENDED — do not render. USER_BANNED_EVENT must
+      correlate with a LiveChatBan row.
+
+  LiveChatBan:
+    source: live_streaming_api
+    description: A ban of a viewer from a specific live chat.
+    id_field: banId
+    key_fields:
+      - snippet.liveChatId
+      - snippet.bannedUserDetails.channelId
+      - snippet.bannedUserDetails.channelUrl
+      - snippet.bannedUserDetails.displayName
+      - snippet.bannedUserDetails.profileImageUrl
+      - snippet.type                 # permanent | temporary
+      - snippet.banDurationSeconds   # when type=temporary
+    belongs_to:
+      - LiveBroadcast                # via liveChatId
+      - Channel                      # banned user
+    has_many: []
+    references:
+      - Channel
+    sensitivity: high
+
+  LiveChatModerator:
+    source: live_streaming_api
+    description: A delegated human moderator on a channel's live chats.
+    id_field: moderatorId
+    key_fields:
+      - snippet.liveChatId
+      - snippet.moderatorDetails.channelId
+      - snippet.moderatorDetails.channelUrl
+      - snippet.moderatorDetails.displayName
+      - snippet.moderatorDetails.profileImageUrl
+    belongs_to:
+      - LiveBroadcast
+    has_many: []
+    references:
+      - Channel
+    sensitivity: medium
+
+  SuperChatEvent:
+    source: live_streaming_api
+    description: >
+      Paid chat message event (Super Chat / Super Sticker). Largely
+      superseded by LiveChatMessage type=SUPER_CHAT_EVENT, but still
+      exposed as a list-only resource.
+    id_field: superChatEventId
+    key_fields:
+      - snippet.channelId            # payer (supporter)
+      - snippet.supporterDetails.channelId
+      - snippet.supporterDetails.displayName
+      - snippet.supporterDetails.profileImageUrl
+      - snippet.commentText
+      - snippet.createdAt
+      - snippet.currency             # ISO 4217
+      - snippet.amountMicros
+      - snippet.amountDisplayString
+      - snippet.messageType          # 1..5 tier
+      - snippet.isSuperStickerEvent
+      - snippet.superStickerMetadata.stickerId
+      - snippet.superStickerMetadata.altText
+      - snippet.superStickerMetadata.language
+    belongs_to:
+      - Channel                      # creator (paid to)
+    has_many: []
+    references:
+      - Channel                      # supporter
+    sensitivity: high
+    safety_notes: |
+      Large tiers + rapid cadence = potential money laundering / account
+      takeover. Currency mismatch with creator location = fraud indicator.
+
+# ============================================================
+# TAXONOMY / REFERENCE
+# ============================================================
+
+  VideoCategory:
+    source: data_api_v3
+    description: System-defined topical category (e.g., News & Politics = 25).
+    id_field: categoryId
+    key_fields:
+      - snippet.title
+      - snippet.channelId            # fixed: YouTube's own channel
+      - snippet.assignable
+    belongs_to: []
+    has_many:
+      - Video
+    references: []
+    sensitivity: low
+    safety_notes: |
+      categoryId drives T&S routing (25 = News & Politics → fact-check lane).
+      assignable=false → legacy/internal-only.
+
+  VideoAbuseReportReason:
+    source: data_api_v3
+    description: >
+      Enumerable list of valid reasons for videos.reportAbuse. No read-side
+      abuse-report entity exists.
+    id_field: reasonId
+    key_fields:
+      - snippet.label
+      - snippet.secondaryReasons     # array of {id, label}
+    belongs_to: []
+    has_many: []
+    references: []
+    sensitivity: low
+
+  I18nRegion:
+    source: data_api_v3
+    description: 2-letter ISO 3166-1 alpha-2 region code used by gl parameter.
+    id_field: id
+    key_fields:
+      - snippet.gl
+      - snippet.name
+    belongs_to: []
+    has_many: []
+    references: []
+    sensitivity: low
+
+  I18nLanguage:
+    source: data_api_v3
+    description: BCP-47 language code used by hl parameter.
+    id_field: id
+    key_fields:
+      - snippet.hl
+      - snippet.name
+    belongs_to: []
+    has_many: []
+    references: []
+    sensitivity: low
+
+  GuideCategory:
+    source: data_api_v3
+    description: Guide category used for legacy channel discovery. Minimal T&S relevance.
+    id_field: guideCategoryId
+    key_fields:
+      - snippet.title
+      - snippet.channelId
+    belongs_to: []
+    has_many: []
+    references: []
+    sensitivity: low
+
+# ============================================================
+# CONTENT ID (PARTNERS ONLY)
+# ============================================================
+
+  Asset:
+    source: content_id_api
+    description: A rights-holder's reference work (music, video, movie, etc.).
+    id_field: assetId
+    key_fields:
+      - id
+      - type                         # see Asset_type enum (sound_recording | composition | music_video | movie | show | episode | season | art_track_video | video_game | web | general)
+      - ownerChannelId
+      - metadata.title
+      - metadata.description
+      - metadata.artists
+      - releaseDate
+    belongs_to:
+      - Channel                      # owner
+    has_many:
+      - Reference
+      - Claim
+    references:
+      - Channel
+    sensitivity: high
+
+  Reference:
+    source: content_id_api
+    description: A digital fingerprint uploaded to Content ID for matching.
+    id_field: referenceId
+    key_fields:
+      - assetId
+      - contentType                  # video | audio | audiovisual
+      - fingerprint
+      - uploadDate
+      - status                       # active | inactive | duplicate_on_hold | ...
+    belongs_to:
+      - Asset
+    has_many: []
+    references:
+      - Asset
+    sensitivity: high
+
+  Claim:
+    source: content_id_api
+    description: An auto-match or manual claim against a user video.
+    id_field: claimId
+    key_fields:
+      - videoId
+      - assetId
+      - contentOwnerId
+      - policyId
+      - status                       # see enum
+      - matchType                    # audiovisual | audio | video
+      - blockOutsideOwnership
+      - timeCreated
+      - appliedPolicy                # territories, actions
+      - isPartnerUploaded
+    belongs_to:
+      - Video
+      - Asset
+    has_many: []
+    references:
+      - Video
+      - Asset
+      - Policy
+    sensitivity: high
+    safety_notes: |
+      status=disputed → user appealed; may indicate false claim.
+      status=duplicate → claim coordination / spam vector.
+
+  Policy:
+    source: content_id_api
+    description: A usage policy defining enforcement actions per territory.
+    id_field: policyId
+    key_fields:
+      - name
+      - rules[].action               # block | monetize | track | review | appeal
+      - rules[].territory            # worldwide | region codes
+      - rules[].includeEmbeds
+      - rules[].matchedContent       # audio | video | audiovisual
+    belongs_to: []                   # content owner scoped
+    has_many:
+      - Claim
+      - Asset
+    references: []
+    sensitivity: high
+    safety_notes: |
+      action=block + territory=worldwide → global suppression;
+      high censorship risk. action=monetize incentivizes spam claims.
+
+# ============================================================
+# REPORTING & PUSH
+# ============================================================
+
+  ReportType:
+    source: reporting_api
+    description: >
+      Bulk CSV reports scheduled via reports.create. Aggregates only, no
+      per-event granularity. Includes channel_basic_a3, channel_device_os_a3,
+      channel_demographics_a1, channel_traffic_source_a3, channel_ads_a1, etc.
+    id_field: reportTypeId
+    key_fields:
+      - id
+      - name
+      - deprecateTime
+      - systemManaged
+    belongs_to: []
+    has_many: []
+    references: []
+    sensitivity: low
+    safety_notes: |
+      Aggregates = no real-time incident detection. Use alongside Data API
+      for row-level content inspection.
+
+  PubSubHubbubNotification:
+    source: pubsubhubbub
+    description: >
+      Atom feed push notification delivered to a subscriber callback URL when
+      a channel uploads or updates a video. Near-real-time (10-30s latency).
+      No deletion notifications (GDPR-sensitive).
+    id_field: null                   # event stream
+    key_fields:
+      - entry.yt:videoId
+      - entry.yt:channelId
+      - entry.published
+      - entry.updated
+      - entry.title
+      - entry.author.name
+      - entry.author.uri
+    belongs_to:
+      - Channel
+    has_many: []
+    references:
+      - Video
+      - Channel
+    sensitivity: medium
+    safety_notes: |
+      updated > published → post-publish metadata tampering.
+      Earliest upload signal; primary ingestion trigger for T&S pipelines.
+
+# ============================================================
+# EVENTS
+# Notes on event semantics:
+#   - Data API v3: polling + activities.list + comment insert/update.
+#   - Live Streaming: liveChatMessages.list (long-polling, ~1 RPS).
+#   - PubSubHubbub: true push for upload/update.
+#   - Reporting API: batch CSV.
+#   - There is NO WebSocket-based streaming API for general YouTube events.
+# ============================================================
+events:
+
+  channel_events:
+    - channel.created                # observed via channels.list; no push
+    - channel.updated                # snippet, status, brandingSettings change
+    - channel.privacyStatus_changed
+    - channel.madeForKids_changed
+    - channel.watermark_set
+    - channel.watermark_unset
+    - channel.country_changed
+    - channel.keywords_changed
+
+  subscription_events:
+    - subscription.created
+    - subscription.deleted
+    # Note: no push for these; observed via subscriptions.list diff.
+
+  membership_events:
+    - membership.created             # new paid member
+    - membership.level_upgraded
+    - membership.level_downgraded
+    - membership.cancelled
+    - membership.gifted              # bulk gift burst
+    - membership.gift_received
+    # Exposed via members.list (owner-auth) + LiveChatMessage types.
+
+  video_events:
+    # Pushed via PubSubHubbub:
+    - video.uploaded                 # new videoId appears in feed
+    - video.metadata_updated         # title/description/tags changed
+    # Poll-observed via videos.list:
+    - video.processing_started       # uploadStatus=uploaded → processing hint
+    - video.processing_succeeded     # processingDetails.processingStatus=succeeded
+    - video.processing_failed        # processingFailureReason populated
+    - video.rejected                 # uploadStatus=rejected + rejectionReason set
+    - video.privacy_changed          # public ↔ unlisted ↔ private
+    - video.embeddable_changed
+    - video.madeForKids_changed
+    - video.region_restriction_changed
+    - video.license_changed
+    - video.content_rating_changed
+    - video.deleted                  # disappearance from videos.list
+    - video.views_milestone          # derived from statistics.viewCount
+    - video.likes_hidden             # statistics.likeCount absent
+    # Live-specific (see live_events):
+
+  playlist_events:
+    - playlist.created
+    - playlist.updated
+    - playlist.deleted
+    - playlist.privacy_changed
+
+  playlist_item_events:
+    - playlist_item.added
+    - playlist_item.removed
+    - playlist_item.reordered        # position changed
+    - playlist_item.trimmed          # startAt/endAt changed
+
+  channel_section_events:
+    - channel_section.created
+    - channel_section.updated
+    - channel_section.deleted
+
+  comment_events:
+    - comment.created                # new top-level or reply
+    - comment.updated                # editor updated textOriginal
+    - comment.liked                  # likeCount delta
+    - comment.moderation_status_changed  # published | heldForReview | likelySpam | rejected
+    - comment.deleted
+    - comment_thread.locked          # isPublic=false or disabled replies
+
+  activity_feed_events:
+    # Per Activity.type enum:
+    - activity.upload
+    - activity.like
+    - activity.favorite
+    - activity.comment
+    - activity.subscription
+    - activity.playlistItem
+    - activity.recommendation
+    - activity.channelItem
+
+  caption_events:
+    - caption.uploaded
+    - caption.updated
+    - caption.deleted
+    - caption.status_changed         # serving | syncing | failed
+
+  live_broadcast_events:
+    # Derived from LiveBroadcast.status.lifeCycleStatus transitions:
+    - broadcast.created              # lifeCycleStatus=created
+    - broadcast.ready                # lifeCycleStatus=ready
+    - broadcast.testing              # lifeCycleStatus=testing | testStarting
+    - broadcast.going_live           # lifeCycleStatus=liveStarting
+    - broadcast.live                 # lifeCycleStatus=live
+    - broadcast.complete             # lifeCycleStatus=complete
+    - broadcast.revoked              # lifeCycleStatus=revoked (policy-driven takedown)
+    - broadcast.recording_started
+    - broadcast.recording_stopped
+    - broadcast.dvr_enabled_changed
+    - broadcast.low_latency_changed
+    - broadcast.monitor_delay_changed
+
+  live_stream_events:
+    - stream.created
+    - stream.ready
+    - stream.active                  # RTMP/DASH ingest flowing
+    - stream.inactive
+    - stream.error
+    - stream.health_good
+    - stream.health_ok
+    - stream.health_bad
+    - stream.health_noData
+
+  live_chat_events:
+    # Each maps directly to LiveChatMessage.type:
+    - chat.text_message              # TEXT_MESSAGE_EVENT
+    - chat.tombstone                 # TOMBSTONE (deletion placeholder)
+    - chat.super_chat                # SUPER_CHAT_EVENT
+    - chat.super_sticker             # SUPER_STICKER_EVENT
+    - chat.poll                      # POLL_EVENT
+    - chat.gift                      # GIFT_EVENT
+    - chat.new_sponsor               # NEW_SPONSOR_EVENT
+    - chat.member_milestone          # MEMBER_MILESTONE_CHAT_EVENT
+    - chat.membership_gifting        # MEMBERSHIP_GIFTING_EVENT
+    - chat.gift_membership_received  # GIFT_MEMBERSHIP_RECEIVED_EVENT
+    - chat.message_deleted           # MESSAGE_DELETED_EVENT
+    - chat.user_banned               # USER_BANNED_EVENT
+    - chat.sponsor_only_started      # SPONSOR_ONLY_MODE_STARTED_EVENT
+    - chat.sponsor_only_ended        # SPONSOR_ONLY_MODE_ENDED_EVENT
+    - chat.ended                     # CHAT_ENDED_EVENT
+    # Derived / companion events:
+    - chat.ban_inserted              # LiveChatBan record created
+    - chat.ban_removed
+    - chat.moderator_added           # LiveChatModerator inserted
+    - chat.moderator_removed
+
+  content_id_events:
+    - claim.created
+    - claim.disputed                 # claimStatus=disputed (user appeal)
+    - claim.appealed                 # claimStatus=appealed
+    - claim.expired
+    - claim.removed
+    - claim.duplicate
+    - claim.partiallyMatched
+    - claim.inactive
+    - claim.pending
+    - claim.rejected
+    - asset.created
+    - asset.updated
+    - asset.deleted
+    - reference.created
+    - reference.updated
+    - reference.deleted
+    - policy.created
+    - policy.updated
+    - policy.deleted
+
+  report_events:
+    - report_job.created
+    - report.available               # new CSV snapshot ready for download
+    - report.deprecated              # report type deprecateTime set
+
+  pubsub_events:
+    - pubsub.subscription_verified   # GET challenge handshake
+    - pubsub.upload_received         # new video entry in Atom feed
+    - pubsub.update_received         # updated entry (title/desc change)
+    # Not emitted: deletion (GDPR-sensitive; no push).
+
+# ============================================================
+# ENUMS (values verified against official docs)
+# ============================================================
+enums:
+
+  privacyStatus:
+    values: [public, unlisted, private]
+    applies_to: [Channel, Video, Playlist, PlaylistItem, LiveBroadcast]
+
+  liveBroadcastContent:
+    values: [none, upcoming, live, completed]
+    applies_to: [Video]
+
+  uploadStatus:
+    values: [deleted, failed, processed, rejected, uploaded]
+    applies_to: [Video]
+    notes: |
+      The in-progress processing state is exposed via
+      processingDetails.processingStatus, NOT via uploadStatus.
+
+  video_rejectionReason:
+    values:
+      - claim
+      - copyright
+      - duplicate
+      - inappropriate
+      - legal
+      - length
+      - termsOfUse
+      - trademark
+      - uploaderAccountClosed
+      - uploaderAccountSuspended
+    applies_to: [Video]
+    notes: |
+      Do NOT confuse with VideoAbuseReportReason — those are user-report
+      categories (violentOrRepulsive, hatefulOrAbusive, childAbuse, etc.).
+      rejectionReason is why YouTube itself rejected an upload.
+
+  video_failureReason:
+    values:
+      - codec
+      - conversion
+      - emptyFile
+      - invalidFile
+      - tooSmall
+      - uploadAborted
+    applies_to: [Video]
+
+  LiveBroadcast_lifeCycleStatus:
+    values:
+      - created
+      - ready
+      - testing
+      - testStarting
+      - liveStarting
+      - live
+      - complete
+      - revoked
+    applies_to: [LiveBroadcast]
+
+  LiveBroadcast_liveStatus:
+    values: [unknown, live, upcoming, completed]
+    applies_to: [LiveBroadcast]
+
+  LiveBroadcast_recordingStatus:
+    values: [notRecording, recording]
+    applies_to: [LiveBroadcast]
+
+  LiveStream_streamStatus:
+    values: [created, ready, active, inactive, error]
+    applies_to: [LiveStream]
+
+  LiveStream_healthStatus:
+    values: [good, ok, bad, noData]
+    applies_to: [LiveStream]
+
+  LiveStream_ingestionType:
+    values: [dash, hls, rtmp]
+    applies_to: [LiveStream]
+    notes: rtmp covers both RTMP and RTMPS ingest addresses.
+
+  LiveStream_resolution:
+    values: ["240p", "360p", "480p", "720p", "1080p", "1440p", "2160p", "variable"]
+    applies_to: [LiveStream]
+
+  LiveChatMessage_type:
+    values:
+      - chatEndedEvent
+      - giftEvent
+      - giftMembershipReceivedEvent
+      - memberMilestoneChatEvent
+      - membershipGiftingEvent
+      - messageDeletedEvent
+      - newSponsorEvent
+      - pollEvent                     # docs also reference pollDetails; treat as same event
+      - sponsorOnlyModeEndedEvent
+      - sponsorOnlyModeStartedEvent
+      - superChatEvent
+      - superStickerEvent
+      - textMessageEvent
+      - tombstone
+      - userBannedEvent
+    applies_to: [LiveChatMessage]
+    notes: |
+      fanFundingEvent and messageRetractedEvent have been retired along
+      with their source features; the public docs no longer list them.
+
+  LiveChatBan_type:
+    values: [permanent, temporary]
+    applies_to: [LiveChatBan]
+
+  Comment_moderationStatus:
+    values: [published, heldForReview, likelySpam, rejected]
+    applies_to: [Comment]
+    notes: Owner-only; requires youtube.force-ssl scope.
+
+  VideoAbuseReportReason_primary:
+    values:
+      - violentOrRepulsive
+      - hatefulOrAbusive
+      - harmfulOrDangerousActs
+      - childAbuse
+      - infringesMyRights
+      - promotesTerrorism
+      - spamOrMisleading
+    applies_to: [VideoAbuseReportReason]
+
+  Caption_trackKind:
+    values: [standard, ASR, forced]
+    applies_to: [Caption]
+
+  Comment_viewerRating:
+    values: [like, none]
+    applies_to: [Comment]
+    notes: |
+      YouTube does not expose per-viewer dislike state; the viewerRating
+      field only surfaces "like" or "none", never "dislike".
+
+  LiveBroadcast_latencyPreference:
+    values: [normal, low, ultraLow]
+    applies_to: [LiveBroadcast]
+
+  LiveBroadcast_closedCaptionsType:
+    values: [closedCaptionsDisabled, closedCaptionsHttpPost, closedCaptionsEmbedded]
+    applies_to: [LiveBroadcast]
+
+  Channel_longUploadsStatus:
+    values: [allowed, disallowed, eligible, longUploadsUnspecified]
+    applies_to: [Channel]
+
+  Caption_audioTrackType:
+    values: [primary, descriptive, commentary, unknown]
+    applies_to: [Caption]
+
+  Caption_status:
+    values: [serving, syncing, failed]
+    applies_to: [Caption]
+
+  ChannelSection_type:
+    values:
+      - allPlaylists
+      - completedEvents
+      - liveEvents
+      - multipleChannels
+      - multiplePlaylists
+      - popularUploads
+      - recentUploads
+      - singlePlaylist
+      - subscriptions
+      - upcomingEvents
+    applies_to: [ChannelSection]
+
+  Activity_type:
+    values:
+      - channelItem
+      - comment          # not currently returned by activities.list
+      - favorite
+      - like
+      - playlistItem
+      - promotedItem
+      - recommendation
+      - social
+      - subscription
+      - upload
+    applies_to: [Activity]
+
+  Video_license:
+    values: [youtube, creativeCommon]
+    applies_to: [Video]
+
+  Video_projection:
+    values: ["360", rectangular]
+    applies_to: [Video, LiveBroadcast]
+
+  Video_contentRating_systems:
+    # Partial list — full set is very large and varies by jurisdiction.
+    values:
+      - mpaaRating                    # US film
+      - mpaatRating                   # US film (trailers)
+      - tvpgRating                    # US TV Parental Guidelines
+      - ytRating                      # YouTube's own rating
+      - bbfcRating                    # UK
+      - catvRating                    # Canada (English)
+      - catvfrRating                  # Canada (French)
+      - chfilmRating                  # Switzerland
+      - cncRating                     # France
+      - fpbRating                     # South Africa
+      - fskRating                     # Germany
+      - icaaRating                    # Spain
+      - jfmkRating                    # Japan
+      - kmrbRating                    # South Korea
+      - russiaRating                  # Russia
+      - djctqRating                   # Brazil
+    applies_to: [Video]
+
+  Claim_status:
+    values:
+      - active
+      - inactive
+      # The following values are reported by the partner-internal Content
+      # ID surfaces and have been observed on the API, but are not all
+      # enumerated in the public claims reference. Treat as best-effort:
+      - appealed
+      - disputed
+      - expired
+      - pending
+      - rejected
+      - removed
+      - duplicate
+      - computedInactive
+      - partiallyMatched
+      - takedown
+      - countered
+    applies_to: [Claim]
+
+  Claim_matchType:
+    values: [audiovisual, audio, video]
+    applies_to: [Claim]
+
+  Policy_action:
+    values: [block, monetize, track]
+    applies_to: [Policy]
+    notes: |
+      Publicly documented actions are limited to block/monetize/track.
+      Additional values (review, appeal, takedown) surface only in the
+      partner-internal Content ID console and are not guaranteed by the
+      public policies API contract.
+
+  Asset_type:
+    values:
+      - art_track_video
+      - composition
+      - episode
+      - general
+      - movie
+      - music_video
+      - season
+      - show
+      - sound_recording
+      - video_game
+      - web
+    applies_to: [Asset]
+
+# ============================================================
+# SAFETY-CRITICAL FIELD MAP
+# ============================================================
+safety_critical_fields:
+
+  identity_and_minors:
+    - Channel.status.madeForKids
+    - Channel.status.selfDeclaredMadeForKids
+    - Video.status.madeForKids
+    - Video.status.selfDeclaredMadeForKids
+    - LiveBroadcast.status.madeForKids
+    - Channel.status.isLinked
+    - Video.contentDetails.contentRating
+
+  content_risk:
+    - Video.status.uploadStatus
+    - Video.status.rejectionReason
+    - Video.status.failureReason
+    - Video.contentDetails.regionRestriction.blocked
+    - Video.snippet.categoryId
+    - Video.snippet.tags
+    - Video.topicDetails.topicIds
+
+  moderation_state:
+    - Comment.snippet.moderationStatus
+    - LiveChatBan.snippet.type
+    - LiveChatBan.snippet.banDurationSeconds
+    - LiveChatModerator.snippet.moderatorDetails.channelId
+    - LiveChatMessage.snippet.type           # includes USER_BANNED, MESSAGE_DELETED
+
+  monetization_abuse:
+    - Video.paidProductPlacementDetails.hasPaidProductPlacement
+    - LiveChatMessage.snippet.superChatDetails.amountMicros
+    - LiveChatMessage.snippet.membershipGiftingDetails.giftMembershipsCount
+    - SuperChatEvent.snippet.amountMicros
+    - SuperChatEvent.snippet.messageType
+    - Claim.policyId
+    - Claim.status
+
+  real_time_signals:
+    - LiveBroadcast.status.lifeCycleStatus
+    - LiveBroadcast.contentDetails.monitorStream.broadcastStreamDelayMs
+    - Video.liveStreamingDetails.concurrentViewers
+    - LiveStream.status.healthStatus.status
+
+  privacy_and_access:
+    - Channel.status.privacyStatus
+    - Video.status.privacyStatus
+    - Video.status.embeddable
+    - Playlist.status.privacyStatus
+    - LiveBroadcast.status.privacyStatus
+
+# ============================================================
+# GAPS & CAVEATS
+# ============================================================
+gaps:
+  - issue: No read-side abuse report entity.
+    detail: videos.reportAbuse is write-only; reports cannot be enumerated via API.
+    url: https://developers.google.com/youtube/v3/docs/videos/reportAbuse
+  - issue: Comment.moderationStatus requires owner authorization.
+    detail: Public API consumers cannot read moderationStatus.
+    url: https://developers.google.com/youtube/v3/docs/comments/setModerationStatus
+  - issue: No bulk export for live chat history.
+    detail: liveChatMessages.list has ~300 req/min rate limit; archive only via YouTube Studio.
+    url: https://developers.google.com/youtube/v3/live/docs/liveChatMessages/list
+  - issue: Content ID API is partner-only.
+    detail: Access restricted; public docs may omit internal fields.
+    url: https://developers.google.com/youtube/partner
+  - issue: PubSubHubbub emits upload/update only.
+    detail: No deletion notifications; T&S pipelines must poll to detect removals.
+    url: https://developers.google.com/youtube/v3/guides/push_notifications
+  - issue: No WebSocket / streaming event API for general YouTube events.
+    detail: All event discovery is poll + PubSubHubbub + LiveChat long-poll.
