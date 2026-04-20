@@ -1,1496 +1,306 @@
-# Discord Trust & Safety Entity Model & Event Catalog
-# Compiled from Discord Developer Documentation
-# Source: https://discord.com/developers/docs/
+# Discord T&S Entity Schema — ROOST Template Fork
+#
+# Shape-preserving realization of abstract_entity_schema.yaml for Discord.
+# Each entity names the abstract kind it realizes via `maps_to:`.
+#
+# Scope cuts (deliberate; add on your fork if needed):
+#   - Decorative / profile fields, ephemeral state (presence, typing, voice)
+#   - Developer surface (Team, ApplicationCommand), discovery / widget
+#   - Nested-in-message constructs (Embed, Component, Poll, Reaction)
+#   - Custom media other than Emoji (Sticker, standard packs)
+#   - Role (rarely central to T&S traversals)
+#   - Commerce (SKU, Subscription, Entitlement)
+#   - Client-only / undocumented (Relationship)
+#
+# Docs root: https://discord.com/developers/docs/
+# Last updated: 2026-04-20
 
----
-# ==============================================================================
-# IDENTITY & SOCIAL GRAPH ENTITIES
-# ==============================================================================
+meta:
+  platform: discord
+  template_version: 0.4
+  companion: { abstract: abstract_entity_schema.yaml, signals: signals.yaml }
 
+key_shapes:
+  platform_ref: { platform: string, platform_id: string }   # snowflake → platform_id
+
+# ============================================================
+# ENTITIES
+# ============================================================
 entities:
-  # ---------------------------------------------------------------------------
-  # USERS & RELATIONSHIPS
-  # ---------------------------------------------------------------------------
 
   User:
-    source: "https://discord.com/developers/docs/resources/user"
-    description: "Individual Discord user account (human or bot)"
-    id_field: "user_id (snowflake)"
-    key_fields:
-      - username: string
-      - discriminator: string ("0" for migrated users post-unique-username rollout)
-      - global_name: string (nullable; display name)
-      - email: string (nullable; private; OAuth2 email scope)
-      - verified: boolean
-      - mfa_enabled: boolean
-      - bot: boolean
-      - system: boolean
-      - avatar: string (nullable; hash)
-      - avatar_decoration_data: object (nullable)
-      - banner: string (nullable; hash)
-      - accent_color: integer (nullable)
-      - locale: string (language code)
-      - flags: integer (bitfield)
-      - premium_type: integer (0=None, 1=Nitro Classic, 2=Nitro, 3=Nitro Basic)
-      - public_flags: integer (bitfield)
-    relationships:
-      has_many:
-        - Messages (author)
-        - Reactions
-        - VoiceStates
-        - Presences
-        - GuildMembers (as user)
-        - DMs (as recipient or initiator)
-      is_referenced_by:
-        - Message mentions
-        - Interaction user
-    sensitivity: "PII - email, username, account linking"
+    maps_to: Actor
+    description: Individual Discord user account (human or bot).
+    id: platform_ref
+    fields:
+      platform_id:  { type: string, required: true }
+      username:     { type: string, required: true }
+      global_name:  { type: string }
+      actor_type:   { type: "enum:actor_type" }
+      bot:          { type: bool }
+      verified:     { type: bool }                            # email verified
+      mfa_enabled:  { type: bool }
+      public_flags: { type: int }
+      created_at:   { type: datetime }                        # derivable from snowflake
+    edges:
+      - { name: authored_messages, target: Message,     via: Message.author,   cardinality: many }
+      - { name: memberships,       target: GuildMember, via: GuildMember.user, cardinality: many }
+      - { name: bans_against,      target: GuildBan,    via: GuildBan.user,    cardinality: many }
+    signals: [reputation, trust_tier, device_fingerprints, session_anomaly_score, cluster_memberships]
 
   GuildMember:
-    source: "https://discord.com/developers/docs/resources/guild#guild-member-object"
-    description: "User with roles and presence within a guild"
-    id_field: "guild_id + user_id (composite snowflake)"
-    key_fields:
-      - user: User (nested object)
-      - nick: string (nullable; server nickname)
-      - avatar: string (nullable; guild-specific avatar hash)
-      - banner: string (nullable; guild-specific banner hash)
-      - avatar_decoration_data: object (nullable)
-      - roles: array of role_ids (snowflakes)
-      - joined_at: ISO8601 timestamp
-      - premium_since: ISO8601 timestamp (nullable; when boosted)
-      - deaf: boolean
-      - mute: boolean
-      - flags: integer (bitfield)
-      - pending: boolean (incomplete onboarding)
-      - permissions: string (bitfield as string)
-      - communication_disabled_until: ISO8601 timestamp (nullable; timeout expiry)
-    belongs_to:
-      - Guild
-    relationships:
-      references:
-        - Role (via roles array)
-    sensitivity: "Moderation-critical; joined_at for member tenure analysis"
-
-  GuildBan:
-    source: "https://discord.com/developers/docs/resources/guild#ban-object"
-    description: "Guild-level ban entry for user"
-    id_field: "guild_id + user_id"
-    key_fields:
-      - user: User
-      - reason: string (nullable; ban reason)
-    belongs_to:
-      - Guild
-    sensitivity: "Moderation action tracking"
-
-  Relationship:
-    source: "INTERNAL / UNDOCUMENTED — not part of the public Developer Docs; observed via client reverse-engineering only. Bot tokens cannot access."
-    description: "Friend/block relationship between users (user-client scope only)"
-    id_field: "user_id (the other user)"
-    key_fields:
-      - id: snowflake (related user)
-      - type: integer (1=friend, 2=blocked, 3=incoming_friend_request, 4=outgoing_friend_request)
-      - nickname: string (nullable)
-    belongs_to:
-      - User (source user, via REST)
-    sensitivity: "Social graph; block relationships; NOT available to bot applications"
-
-  Role:
-    source: "https://discord.com/developers/docs/resources/guild#role-object"
-    description: "Guild permission role"
-    id_field: "role_id (snowflake)"
-    key_fields:
-      - name: string
-      - color: integer (decimal RGB)
-      - hoist: boolean (display separately in user list)
-      - icon: string (nullable; role icon hash)
-      - unicode_emoji: string (nullable; unicode emoji)
-      - position: integer (position in hierarchy)
-      - permissions: string (bitfield as string)
-      - managed: boolean (managed by integration/bot)
-      - mentionable: boolean
-      - tags: object (nullable)
-        - bot_id: snowflake (if managed by bot)
-        - integration_id: snowflake (if managed by integration)
-        - premium_subscriber: null (marker if booster role)
-        - subscription_listing_id: snowflake (if guild subscription role)
-        - available_for_purchase: null (if purchasable)
-        - guild_connections: null (if guild connections role)
-    belongs_to:
-      - Guild
-    relationships:
-      is_assigned_to:
-        - GuildMember (via roles array)
-    sensitivity: "Permission-critical; bot_id for bot attribution; permissions bitfield"
-
-  Team:
-    source: "https://discord.com/developers/docs/topics/teams"
-    description: "Discord Developer team for app collaboration"
-    id_field: "team_id (snowflake)"
-    key_fields:
-      - name: string
-      - icon: string (nullable; hash)
-      - owner_user_id: snowflake
-      - members: array of TeamMember objects
-    sensitivity: "Developer identity"
-
-  # ---------------------------------------------------------------------------
-  # GUILDS & CONTAINERS
-  # ---------------------------------------------------------------------------
+    maps_to: Membership
+    description: A User's membership in a Guild (nickname, roles, timeout state).
+    id: "composite: {platform, guild_id, user_id}"
+    fields:
+      user:                         { type: platform_ref, required: true }
+      guild:                        { type: platform_ref, required: true }
+      nick:                         { type: string }
+      joined_at:                    { type: datetime, required: true }
+      pending:                      { type: bool }            # onboarding incomplete → send blocked
+      communication_disabled_until: { type: datetime }        # timeout expiry
+    edges:
+      - { name: user_ref,  target: User,  via: GuildMember.user,  cardinality: one }
+      - { name: guild_ref, target: Guild, via: GuildMember.guild, cardinality: one }
 
   Guild:
-    source: "https://discord.com/developers/docs/resources/guild#guild-object"
-    description: "Discord server/community"
-    id_field: "guild_id (snowflake)"
-    key_fields:
-      - name: string
-      - icon: string (nullable; hash)
-      - icon_hash: string (nullable; 128-bit hash)
-      - splash: string (nullable; invite background)
-      - discovery_splash: string (nullable; discovery category)
-      - owner_id: snowflake
-      - permissions: string (nullable; bitfield)
-      - region: string (nullable; deprecated voice region)
-      - afk_channel_id: snowflake (nullable)
-      - afk_timeout: integer (seconds)
-      - widget_enabled: boolean
-      - widget_channel_id: snowflake (nullable)
-      - verification_level: integer (0=None, 1=Low, 2=Medium, 3=High, 4=Very High)
-      - default_message_notifications: integer (0=ALL_MESSAGES, 1=ONLY_MENTIONS)
-      - explicit_content_filter: integer (0=Disabled, 1=Members without roles, 2=All)
-      - roles: array of Role objects
-      - emojis: array of Emoji objects
-      - features: array of GuildFeature strings
-      - mfa_level: integer (0=None, 1=Elevated)
-      - application_id: snowflake (nullable; bot creator)
-      - system_channel_id: snowflake (nullable)
-      - system_channel_flags: integer (bitfield)
-      - rules_channel_id: snowflake (nullable)
-      - joined_at: ISO8601 timestamp
-      - large: boolean (member count > IDENTIFY large_threshold; default 50, max 250)
-      - unavailable: boolean
-      - member_count: integer
-      - voice_states: array of VoiceState objects
-      - members: array of GuildMember objects
-      - channels: array of Channel objects
-      - threads: array of Channel objects (threads)
-      - presences: array of PresenceUpdate objects
-      - max_presences: integer (nullable)
-      - max_members: integer
-      - vanity_url_code: string (nullable)
-      - description: string (nullable)
-      - banner: string (nullable; hash)
-      - premium_tier: integer (0=None, 1-3=Tiers)
-      - premium_subscription_count: integer
-      - preferred_locale: string
-      - public_updates_channel_id: snowflake (nullable)
-      - max_video_channel_users: integer
-      - approximate_member_count: integer (nullable; REST only)
-      - approximate_presence_count: integer (nullable; REST only)
-      - welcome_screen: WelcomeScreen (nullable)
-      - nsfw_level: integer (0=Default, 1=Explicit, 2=Safe, 3=Age Restricted)
-      - stickers: array of Sticker objects
-      - premium_progress_bar_enabled: boolean
-      - safety_alerts_channel_id: snowflake (nullable)
-    relationships:
-      has_many:
-        - Channel
-        - Role
-        - GuildMember
-        - GuildBan
-        - Invite
-        - Integration
-        - Webhook
-        - Emoji
-        - Sticker
-        - GuildScheduledEvent
-        - AutoModerationRule
-        - VoiceState
-      references:
-        - User (owner_id)
-        - Application (application_id)
-    sensitivity: "Trust & Safety critical; verification_level, mfa_level, features all moderation-relevant"
-
-  GuildPreview:
-    source: "https://discord.com/developers/docs/resources/guild#guild-preview-object"
-    description: "Public preview of a public guild"
-    id_field: "guild_id"
-    key_fields:
-      - name: string
-      - icon: string (nullable)
-      - splash: string (nullable)
-      - discovery_splash: string (nullable)
-      - emojis: array of Emoji
-      - features: array of GuildFeature
-      - approximate_member_count: integer
-      - approximate_presence_count: integer
-      - description: string (nullable)
-      - stickers: array of Sticker
-
-  GuildWidget:
-    source: "https://discord.com/developers/docs/resources/guild#guild-widget-object"
-    description: "Embeddable guild widget settings"
-    id_field: "guild_id"
-    key_fields:
-      - enabled: boolean
-      - channel_id: snowflake (nullable)
-
-  GuildWelcomeScreen:
-    source: "https://discord.com/developers/docs/resources/guild#welcome-screen-object"
-    description: "Welcome screen shown to new members"
-    id_field: "guild_id"
-    key_fields:
-      - welcome_channels: array
-        - channel_id: snowflake
-        - description: string
-        - emoji_id: snowflake (nullable)
-        - emoji_name: string (nullable)
-      - description: string (nullable)
-
-  GuildOnboarding:
-    source: "https://discord.com/developers/docs/resources/guild#guild-onboarding-object"
-    description: "New member onboarding flow"
-    id_field: "guild_id"
-    key_fields:
-      - prompts: array of OnboardingPrompt
-      - default_channel_ids: array of snowflakes
-      - enabled: boolean
-
-  GuildScheduledEvent:
-    source: "https://discord.com/developers/docs/resources/guild-scheduled-event"
-    description: "Guild event (meeting, stream, external event)"
-    id_field: "guild_scheduled_event_id (snowflake)"
-    key_fields:
-      - guild_id: snowflake
-      - channel_id: snowflake (nullable; null if external)
-      - creator_id: snowflake (nullable)
-      - name: string
-      - description: string (nullable)
-      - scheduled_start_time: ISO8601
-      - scheduled_end_time: ISO8601 (nullable)
-      - privacy_level: integer (1=Guild Only, 2=Public)
-      - status: integer (1=Scheduled, 2=Active, 3=Completed, 4=Canceled)
-      - entity_type: integer (1=STAGE_INSTANCE, 2=VOICE, 3=EXTERNAL)
-      - entity_id: snowflake (nullable)
-      - entity_metadata: object (nullable; external event location/url)
-      - creator: User (nullable)
-      - user_count: integer
-      - image: string (nullable; cover image hash)
-    belongs_to:
-      - Guild
-    references:
-      - Channel (channel_id)
-      - User (creator_id)
-    sensitivity: "Event attendance tracking; privacy_level controls visibility"
+    maps_to: Space
+    description: Discord server — top-level community container.
+    id: platform_ref
+    fields:
+      platform_id:             { type: string, required: true }
+      name:                    { type: string, required: true }
+      owner:                   { type: platform_ref, required: true }
+      verification_level:      { type: "enum:verification_level" }
+      explicit_content_filter: { type: "enum:explicit_content_filter" }
+      nsfw_level:              { type: "enum:nsfw_level" }
+      features:                { type: "list<enum:guild_feature>" }
+      member_count:            { type: int }
+    edges:
+      - { name: owner_user,     target: User,               via: Guild.owner,              cardinality: one }
+      - { name: channels,       target: Channel,            via: Channel.guild,            cardinality: many }
+      - { name: members,        target: GuildMember,        via: GuildMember.guild,        cardinality: many }
+      - { name: bans,           target: GuildBan,           via: GuildBan.guild,           cardinality: many }
+      - { name: auto_mod_rules, target: AutoModerationRule, via: AutoModerationRule.guild, cardinality: many }
+      - { name: audit_log,      target: AuditLogEntry,      via: AuditLogEntry.guild,      cardinality: many }
+    signals: [risk_score, recent_moderation_rate]
 
   Channel:
-    source: "https://discord.com/developers/docs/resources/channel"
-    description: "Communication channel (text, voice, thread, forum, etc.)"
-    id_field: "channel_id (snowflake)"
-    key_fields:
-      - type: integer (0=GUILD_TEXT, 1=DM, 2=GUILD_VOICE, 3=GROUP_DM, 4=GUILD_CATEGORY, 5=GUILD_ANNOUNCEMENT, 10=ANNOUNCEMENT_THREAD, 11=PUBLIC_THREAD, 12=PRIVATE_THREAD, 13=GUILD_STAGE_VOICE, 14=GUILD_DIRECTORY, 15=GUILD_FORUM, 16=GUILD_MEDIA)
-      - id: snowflake
-      - guild_id: snowflake (nullable; null for DM)
-      - position: integer
-      - permission_overwrites: array of PermissionOverwrite objects
-      - name: string
-      - topic: string (nullable; channel description)
-      - nsfw: boolean
-      - last_message_id: snowflake (nullable)
-      - bitrate: integer (nullable; voice only)
-      - user_limit: integer (nullable; voice only; 0=unlimited)
-      - rate_limit_per_user: integer (nullable; seconds between messages)
-      - recipients: array of User objects (nullable; DM/group DM only)
-      - icon: string (nullable; group DM only)
-      - owner_id: snowflake (nullable; group DM/thread creator)
-      - application_id: snowflake (nullable; channel from application)
-      - managed: boolean (nullable; managed by application)
-      - parent_id: snowflake (nullable; category or parent thread)
-      - last_pin_timestamp: ISO8601 (nullable)
-      - rtc_region: string (nullable; voice region override)
-      - video_quality_mode: integer (nullable; 1=Auto, 2=720p)
-      - default_auto_archive_duration: integer (nullable; thread archive minutes)
-      - flags: integer (nullable; bitfield)
-      - available_tags: array of ForumTag (nullable; forum only)
-      - applied_tags: array of tag_ids (nullable; thread in forum)
-      - default_reaction_emoji: ForumTag emoji (nullable; forum default)
-      - default_thread_rate_limit_per_user: integer (nullable; forum/media)
-      - default_sort_order: integer (nullable; 0=Latest activity, 1=Creation time)
-      - default_forum_layout: integer (nullable; 0=Not set, 1=List, 2=Grid)
-    belongs_to:
-      - Guild (nullable)
-    relationships:
-      has_many:
-        - Message
-        - Reaction
-        - PermissionOverwrite
-        - Thread (if forum or media channel)
-        - Webhook
-      parent:
-        - Category (parent_id if category)
-    sensitivity: "NSFW flag; rate_limit_per_user; parent_id hierarchy"
-
-  Thread:
-    source: "https://discord.com/developers/docs/resources/channel#thread-metadata-object"
-    description: "Message thread. A thread is a specialized Channel; fields here split into (a) ThreadMetadata sub-object, (b) Channel-level fields, and (c) gateway-only fields."
-    id_field: "channel_id (snowflake; thread is a special Channel)"
-    thread_metadata_fields:
-      - archived: boolean
-      - auto_archive_duration: integer (minutes)
-      - archive_timestamp: ISO8601
-      - locked: boolean (read-only)
-      - invitable: boolean (PRIVATE_THREAD only)
-      - create_timestamp: ISO8601 (nullable)
-    channel_level_fields:
-      - member_count: integer (approximate; capped at 50)
-      - message_count: integer (approximate; capped at 50 for older threads)
-      - total_message_sent: integer (lifetime count; not decremented on delete)
-      - rate_limit_per_user: integer (nullable)
-      - owner_id: snowflake (nullable; thread creator)
-      - applied_tags: array of tag_ids (forum/media threads)
-      - member: ThreadMember object (nullable; current user's membership)
-    gateway_only_fields:
-      - newly_created: boolean (present on THREAD_CREATE dispatch only)
-    belongs_to:
-      - Channel (parent channel)
-    relationships:
-      has_many:
-        - Message (within thread)
-        - ThreadMember
-
-  StageInstance:
-    source: "https://discord.com/developers/docs/resources/stage-instance"
-    description: "Live audio stage on a stage channel"
-    id_field: "id (snowflake)"
-    key_fields:
-      - guild_id: snowflake
-      - channel_id: snowflake
-      - topic: string
-      - privacy_level: integer (1=Guild only, 2=Public)
-      - discoverable_disabled: boolean
-    belongs_to:
-      - Guild
-      - Channel (stage channel)
-
-  # ---------------------------------------------------------------------------
-  # CONTENT ENTITIES
-  # ---------------------------------------------------------------------------
+    maps_to: Space
+    description: >
+      Text channel, voice channel, category, forum, media channel, or thread
+      within a Guild (or DM). Threads are Channel rows with kind=*_thread.
+    id: platform_ref
+    fields:
+      platform_id:         { type: string, required: true }
+      guild:               { type: platform_ref }             # null for DM / group DM
+      parent:              { type: platform_ref }             # category, forum, or parent channel for threads
+      kind:                { type: "enum:channel_kind", required: true }
+      name:                { type: string }
+      topic:               { type: string }
+      nsfw:                { type: bool }
+      rate_limit_per_user: { type: int }                      # slowmode seconds
+      thread_metadata:     { type: "dict" }                   # {archived, auto_archive_duration, locked, invitable}
+    edges:
+      - { name: guild_ref,    target: Guild,   via: Channel.guild,   cardinality: one }
+      - { name: parent_space, target: Channel, via: Channel.parent,  cardinality: one }
+      - { name: messages,     target: Message, via: Message.channel, cardinality: many }
+      - { name: webhooks,     target: Webhook, via: Webhook.channel, cardinality: many }
+    signals: [risk_score, recent_moderation_rate]
 
   Message:
-    source: "https://discord.com/developers/docs/resources/message"
-    description: "Text message, embed, or system message"
-    id_field: "message_id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - channel_id: snowflake
-      - guild_id: snowflake (nullable)
-      - author: User (nullable if webhook)
-      - member: GuildMember (nullable; guild context)
-      - content: string (requires MESSAGE_CONTENT intent if privileged)
-      - timestamp: ISO8601
-      - edited_timestamp: ISO8601 (nullable)
-      - tts: boolean (text-to-speech)
-      - mention_everyone: boolean
-      - mentions: array of User objects
-      - mention_roles: array of role_ids
-      - mention_channels: array of Channel objects (nullable)
-      - attachments: array of Attachment objects
-      - embeds: array of Embed objects
-      - reactions: array of Reaction objects (nullable)
-      - nonce: string or integer (nullable; idempotency key)
-      - pinned: boolean
-      - webhook_id: snowflake (nullable; sent by webhook)
-      - type: integer (message type enum)
-      - activity: object (nullable; Rich Presence)
-      - application: Application (nullable; Rich Presence)
-      - application_id: snowflake (nullable; interaction origin)
-      - message_reference: object (nullable; crosspost/reply reference)
-      - flags: integer (bitfield; message flags)
-      - referenced_message: Message (nullable; replied-to message)
-      - interaction: Interaction (nullable; triggered by interaction)
-      - thread: Channel (nullable; thread created by message)
-      - components: array of Component objects (buttons, select menus)
-      - sticker_items: array of StickerItem objects
-      - poll: Poll (nullable)
-    belongs_to:
-      - Channel
-      - Guild (nullable)
-      - Thread (nullable; if in thread)
-    references:
-      - User (author, mentions)
-      - Role (mention_roles)
-      - Channel (mention_channels)
-      - Message (referenced_message, message_reference)
-    sensitivity: "Content moderation critical; requires MESSAGE_CONTENT privileged intent"
-
-  MessageType:
-    enum_values:
-      - 0: DEFAULT
-      - 1: RECIPIENT_ADD
-      - 2: RECIPIENT_REMOVE
-      - 3: CALL
-      - 4: CHANNEL_NAME_CHANGE
-      - 5: CHANNEL_ICON_CHANGE
-      - 6: CHANNEL_PINNED_MESSAGE
-      - 7: USER_JOIN
-      - 8: GUILD_BOOST
-      - 9: GUILD_BOOST_TIER_1
-      - 10: GUILD_BOOST_TIER_2
-      - 11: GUILD_BOOST_TIER_3
-      - 12: CHANNEL_FOLLOW_ADD
-      - 14: GUILD_DISCOVERY_DISQUALIFIED
-      - 15: GUILD_DISCOVERY_REQUALIFIED
-      - 16: GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING
-      - 17: GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING
-      - 18: THREAD_CREATED
-      - 19: REPLY
-      - 20: CHAT_INPUT_COMMAND
-      - 21: THREAD_STARTER_MESSAGE
-      - 22: GUILD_INVITE_REMINDER
-      - 23: CONTEXT_MENU_COMMAND
-      - 24: AUTO_MODERATION_ACTION
-      - 25: ROLE_SUBSCRIPTION_PURCHASE
-      - 26: INTERACTION_PREMIUM_UPSELL
-      - 27: STAGE_START
-      - 28: STAGE_END
-      - 29: STAGE_SPEAKER
-      - 30: STAGE_RAISE_HAND
-      - 31: STAGE_TOPIC
-      - 32: GUILD_APPLICATION_PREMIUM_SUBSCRIPTION
-      - 36: GUILD_INCIDENT_ALERT_MODE_ENABLED
-      - 37: GUILD_INCIDENT_ALERT_MODE_DISABLED
-      - 38: GUILD_INCIDENT_REPORT_RAID
-      - 39: GUILD_INCIDENT_REPORT_FALSE_ALARM
-      - 44: PURCHASE_NOTIFICATION
-      - 46: POLL_RESULT
-
-  MessageFlags:
-    bitfield_values:
-      - 1 (1 << 0): CROSSPOSTED
-      - 2 (1 << 1): IS_CROSSPOST
-      - 4 (1 << 2): SUPPRESS_EMBEDS
-      - 8 (1 << 3): SOURCE_MESSAGE_DELETED
-      - 16 (1 << 4): URGENT
-      - 32 (1 << 5): HAS_THREAD
-      - 64 (1 << 6): EPHEMERAL
-      - 128 (1 << 7): LOADING
-      - 256 (1 << 8): FAILED_TO_MENTION_SOME_ROLES_IN_THREAD
-      # bits 9-11 are reserved/undocumented
-      - 4096 (1 << 12): SUPPRESS_NOTIFICATIONS
-      - 8192 (1 << 13): IS_VOICE_MESSAGE
-      - 16384 (1 << 14): HAS_SNAPSHOT
-      - 32768 (1 << 15): IS_COMPONENTS_V2
-
-  Embed:
-    source: "https://discord.com/developers/docs/resources/message#embed-object"
-    description: "Rich embedded content card in message"
-    id_field: "N/A (no direct ID; array member)"
-    key_fields:
-      - title: string (nullable)
-      - type: string (rich, image, video, gifv, article, link)
-      - description: string (nullable)
-      - url: string (nullable)
-      - timestamp: ISO8601 (nullable)
-      - color: integer (decimal RGB)
-      - footer: object (nullable)
-        - text: string
-        - icon_url: string (nullable)
-        - proxy_icon_url: string (nullable)
-      - image: object (nullable)
-        - url: string
-        - proxy_url: string (nullable)
-        - height: integer (nullable)
-        - width: integer (nullable)
-      - thumbnail: object (nullable)
-      - video: object (nullable)
-      - provider: object (nullable)
-      - author: object (nullable)
-        - name: string
-        - url: string (nullable)
-        - icon_url: string (nullable)
-      - fields: array of object (max 25)
-        - name: string
-        - value: string
-        - inline: boolean
-    parent: Message
+    maps_to: Content
+    description: Text message, reply, or system message in a Channel.
+    id: platform_ref
+    fields:
+      platform_id:        { type: string, required: true }
+      channel:            { type: platform_ref, required: true }
+      guild:              { type: platform_ref }
+      author:             { type: platform_ref, required: true }  # User (virtual for webhook sends)
+      webhook_id:         { type: platform_ref }                   # set iff webhook
+      content:            { type: string }                         # requires MESSAGE_CONTENT intent
+      type:               { type: "enum:message_type" }
+      mention_everyone:   { type: bool }
+      mentions:           { type: "list<platform_ref>" }
+      referenced_message: { type: platform_ref }                   # reply target
+      created_at:         { type: datetime, required: true }
+      edited_at:          { type: datetime }
+      deleted_at:         { type: datetime }
+    edges:
+      - { name: author_user,    target: User,               via: Message.author,             cardinality: one }
+      - { name: author_webhook, target: Webhook,            via: Message.webhook_id,         cardinality: one }  # iff webhook_id set
+      - { name: channel_space,  target: Channel,            via: Message.channel,            cardinality: one }
+      - { name: reply_target,   target: Message,            via: Message.referenced_message, cardinality: one }
+      - { name: attachments,    target: Attachment,         via: Attachment.message,         cardinality: many }
+      - { name: decisions,      target: ModerationDecision, via: ModerationDecision.target,  cardinality: many, when: "target_kind=content" }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
 
   Attachment:
-    source: "https://discord.com/developers/docs/resources/message#attachment-object"
-    description: "File attachment in message"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - filename: string
-      - description: string (nullable)
-      - content_type: string (MIME type)
-      - size: integer (bytes)
-      - url: string
-      - proxy_url: string
-      - height: integer (nullable; image/video)
-      - width: integer (nullable; image/video)
-      - ephemeral: boolean
-      - duration_secs: float (nullable; audio)
-      - waveform: string (nullable; audio)
-      - flags: integer (nullable)
-    parent: Message
-    sensitivity: "Content moderation; file type tracking"
+    maps_to: Content
+    description: File (image, video, audio, document) attached to a Message.
+    id: platform_ref
+    fields:
+      platform_id:   { type: string, required: true }
+      message:       { type: platform_ref, required: true }
+      filename:      { type: string }
+      content_type:  { type: string }                         # MIME
+      size:          { type: int }
+      url:           { type: string }
+      duration_secs: { type: float }                          # audio only
+    edges:
+      - { name: message_ref, target: Message, via: Attachment.message, cardinality: one }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
 
   Emoji:
-    source: "https://discord.com/developers/docs/resources/emoji"
-    description: "Custom guild emoji"
-    id_field: "emoji_id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - name: string
-      - roles: array of role_ids (roles that can use this emoji)
-      - user: User (nullable; creator)
-      - require_colons: boolean
-      - managed: boolean (bot-managed)
-      - animated: boolean
-      - available: boolean
-    belongs_to:
-      - Guild
-    sensitivity: "Custom emoji can embed arbitrary images; requires upload audit"
-
-  Sticker:
-    source: "https://discord.com/developers/docs/resources/sticker"
-    description: "Sticker image (guild or standard pack)"
-    id_field: "sticker_id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - pack_id: snowflake (nullable; standard pack)
-      - name: string
-      - description: string (nullable)
-      - tags: string (unicode emoji expressions, comma-separated)
-      - asset: string (nullable; hash)
-      - type: integer (1=STANDARD, 2=GUILD)
-      - format_type: integer (1=PNG, 2=APNG, 3=LOTTIE, 4=GIF)
-      - available: boolean (nullable; standard only)
-      - guild_id: snowflake (nullable; guild only)
-      - user: User (nullable; creator)
-      - sort_value: integer (nullable)
-    sensitivity: "Can contain custom images; guild stickers tracked per guild"
-
-  StickerPack:
-    source: "https://discord.com/developers/docs/resources/sticker#sticker-pack-object"
-    description: "Standard sticker pack"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - stickers: array of Sticker objects
-      - name: string
-      - sku_id: snowflake
-      - cover_sticker_id: snowflake (nullable)
-      - description: string
-      - banner_asset_id: snowflake (nullable)
-
-  Poll:
-    source: "https://discord.com/developers/docs/resources/poll"
-    description: "Message poll"
-    id_field: "id (snowflake; part of message)"
-    key_fields:
-      - question: object
-        - text: string
-        - emoji: Emoji (nullable)
-      - answers: array of object
-        - answer_id: integer
-        - poll_media: object
-          - text: string (nullable)
-          - emoji: Emoji (nullable)
-      - expiry: ISO8601
-      - allow_multiselect: boolean
-      - layout_type: integer (1=DEFAULT)
-      - results: object (nullable; populated after votes)
-        - is_finalized: boolean
-        - answer_counts: array of { id, count, me_voted }
-    parent: Message
-
-  Reaction:
-    source: "https://discord.com/developers/docs/resources/message#reaction-object"
-    description: "Emoji reaction on message"
-    id_field: "N/A (identified by message + emoji)"
-    key_fields:
-      - count: integer
-      - count_details: object
-        - burst: integer
-        - normal: integer
-      - me: boolean (current user reacted)
-      - me_burst: boolean (current user used super react)
-      - emoji: Emoji object
-      - burst_colors: array of strings (hex colors; super reactions)
-    parent: Message
-    sensitivity: "Sentiment aggregation; reaction farming detection"
-
-  ForumTag:
-    source: "https://discord.com/developers/docs/resources/channel#forum-tag-object"
-    description: "Category tag for forum threads"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - name: string
-      - moderated: boolean
-      - emoji_id: snowflake (nullable)
-      - emoji_name: string (nullable)
-    parent: Channel (forum/media only)
-
-  Component:
-    source: "https://discord.com/developers/docs/components/reference"
-    description: "Interactive UI component (button, select menu, etc.)"
-    id_field: "N/A (nested in message)"
-    types:
-      - 1: ACTION_ROW (container; max 5 buttons or 1 select)
-      - 2: BUTTON (clickable; custom_id required)
-      - 3: STRING_SELECT (dropdown menu)
-      - 4: TEXT_INPUT (form field)
-      - 5: USER_SELECT
-      - 6: ROLE_SELECT
-      - 7: MENTIONABLE_SELECT
-      - 8: CHANNEL_SELECT
-      # Components V2 (requires IS_COMPONENTS_V2 message flag):
-      - 9: SECTION
-      - 10: TEXT_DISPLAY
-      - 11: THUMBNAIL
-      - 12: MEDIA_GALLERY
-      - 13: FILE
-      - 14: SEPARATOR
-      - 17: CONTAINER
-      - 18: LABEL
-      - 19: FILE_UPLOAD
-      - 21: RADIO_GROUP
-      - 22: CHECKBOX_GROUP
-      - 23: CHECKBOX
-    key_fields:
-      - type: integer
-      - custom_id: string (1-100 chars; state identifier)
-      - disabled: boolean
-      - label: string (nullable)
-      - style: integer (button style: 1=Primary, 2=Secondary, 3=Success, 4=Danger, 5=Link)
-      - placeholder: string (nullable)
-      - min_values: integer (nullable; select default)
-      - max_values: integer (nullable; select max)
-      - options: array of SelectOption
-      - default_values: array of SelectDefaultValue
-      - channels: array of snowflakes (nullable; channel select)
-      - roles: array of snowflakes (nullable; role select)
-      - users: array of snowflakes (nullable; user select)
-    sensitivity: "Custom IDs carry state; interaction handler surface"
-
-  # ---------------------------------------------------------------------------
-  # VOICE & REAL-TIME
-  # ---------------------------------------------------------------------------
-
-  VoiceState:
-    source: "https://discord.com/developers/docs/resources/voice#voice-state-object"
-    description: "User's voice connection state"
-    id_field: "guild_id + user_id (composite)"
-    key_fields:
-      - guild_id: snowflake (nullable)
-      - channel_id: snowflake (nullable; null = not connected)
-      - user_id: snowflake
-      - member: GuildMember (nullable; guild context)
-      - session_id: string (unique session)
-      - deaf: boolean (server-deafened)
-      - mute: boolean (server-muted)
-      - self_deaf: boolean (client-deafened)
-      - self_mute: boolean (client-muted)
-      - self_stream: boolean (streaming to guild)
-      - self_video: boolean (camera on)
-      - suppress: boolean (suppressed in stage)
-      - request_to_speak_timestamp: ISO8601 (nullable; stage raise hand)
-    belongs_to:
-      - Guild (nullable)
-      - Channel (channel_id; voice/stage channel)
-    sensitivity: "Real-time voice activity; streaming status"
-
-  VoiceRegion:
-    source: "https://discord.com/developers/docs/resources/voice#voice-region-object"
-    description: "Geographic region for voice servers"
-    id_field: "id (string code)"
-    key_fields:
-      - id: string
-      - name: string
-      - optimal: boolean
-      - deprecated: boolean
-      - custom: boolean
-
-  # ---------------------------------------------------------------------------
-  # INTERACTIONS & APPLICATIONS
-  # ---------------------------------------------------------------------------
-
-  Application:
-    source: "https://discord.com/developers/docs/resources/application"
-    description: "Registered Discord application (bot or OAuth app)"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - name: string
-      - icon: string (nullable; hash)
-      - description: string
-      - rpc_origins: array of strings (nullable)
-      - bot_public: boolean
-      - bot_require_code_grant: boolean
-      - bot: User (nullable; bot user if has bot user)
-      - terms_of_service_url: string (nullable)
-      - privacy_policy_url: string (nullable)
-      - owner: User (nullable)
-      - verify_key: string (public key)
-      - team: Team (nullable; if team-owned)
-      - guild_id: snowflake (nullable; if guild-limited)
-      - primary_sku_id: snowflake (nullable)
-      - slug: string (nullable)
-      - cover_image: string (nullable; hash)
-      - flags: integer (bitfield)
-      - tags: array of strings
-      - install_params: object (nullable)
-        - scopes: array (OAuth2 scopes)
-        - permissions: string (bitfield)
-      - custom_install_url: string (nullable)
-      - role_connections_verification_url: string (nullable)
-    sensitivity: "App identity; verify_key for signature verification"
-
-  ApplicationCommand:
-    source: "https://discord.com/developers/docs/interactions/application-commands"
-    description: "Slash command or context menu command"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - type: integer (1=CHAT_INPUT/slash, 2=USER context menu, 3=MESSAGE context menu)
-      - application_id: snowflake
-      - guild_id: snowflake (nullable; guild-local command)
-      - name: string
-      - name_localizations: object (nullable; i18n)
-      - description: string
-      - description_localizations: object (nullable; i18n)
-      - options: array of CommandOption (nullable)
-      - default_member_permissions: string (nullable; bitfield)
-      - dm_permission: boolean (nullable)
-      - default_permission: boolean (deprecated)
-      - nsfw: boolean
-      - integration_types: array of integer (1=GUILD_INSTALL, 2=USER_INSTALL)
-      - contexts: array of integer (0=GUILD, 1=BOT_DM, 2=PRIVATE_CHANNEL)
-      - version: snowflake
-    sensitivity: "Commands are public discovery surface; nsfw controls visibility"
-
-  Interaction:
-    source: "https://discord.com/developers/docs/interactions/receiving-and-responding"
-    description: "User interaction event (slash command, button, select menu, etc.)"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - application_id: snowflake
-      - type: integer (1=PING, 2=APPLICATION_COMMAND, 3=MESSAGE_COMPONENT, 4=APPLICATION_COMMAND_AUTOCOMPLETE, 5=MODAL_SUBMIT)
-      - data: object (varies by type)
-      - guild_id: snowflake (nullable)
-      - channel_id: snowflake (nullable)
-      - member: GuildMember (nullable)
-      - user: User (nullable)
-      - token: string (interaction token; use for responses)
-      - version: integer
-      - message: Message (nullable; component interaction)
-      - app_permissions: string (bitfield)
-      - locale: string (user locale)
-      - guild_locale: string (nullable; guild locale)
-      - entitlements: array of Entitlement
-      - authorizing_integration_owners: object (integration IDs)
-      - context: integer (nullable; 0=Guild, 1=BotDM, 2=Private)
-    sensitivity: "User action tracking; locale; entitlements indicate purchases"
+    maps_to: Content
+    description: Custom guild emoji — arbitrary uploaded image (CSAM vector).
+    id: platform_ref
+    fields:
+      platform_id: { type: string, required: true }
+      guild:       { type: platform_ref }
+      name:        { type: string }
+      creator:     { type: platform_ref }
+      animated:    { type: bool }
+    edges:
+      - { name: guild_ref,   target: Guild, via: Emoji.guild,   cardinality: one }
+      - { name: creator_ref, target: User,  via: Emoji.creator, cardinality: one }
+    signals: [harm_labels, similarity_hash]
 
   Webhook:
-    source: "https://discord.com/developers/docs/resources/webhook"
-    description: "Webhook for sending/forwarding messages"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - type: integer (1=Incoming, 2=Channel Follower, 3=Application)
-      - guild_id: snowflake (nullable)
-      - channel_id: snowflake
-      - user: User (nullable; creator)
-      - name: string (nullable)
-      - avatar: string (nullable; hash)
-      - token: string (nullable; secret token)
-      - application_id: snowflake (nullable)
-      - source_guild: Guild (nullable; follower webhook)
-      - source_channel: Channel (nullable; follower webhook)
-      - url: string (nullable; Incoming webhook URL)
-    belongs_to:
-      - Channel
-      - Guild (nullable)
-    sensitivity: "Webhook tokens are secrets; followers track cross-guild reposts"
-
-  Integration:
-    source: "https://discord.com/developers/docs/resources/integration"
-    description: "Third-party service integration (Twitch, YouTube, etc.)"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - name: string
-      - type: string (twitch, youtube, discord, guild_subscription, etc.)
-      - enabled: boolean
-      - syncing: boolean (nullable)
-      - role_id: snowflake (nullable)
-      - enable_emoticons: boolean (nullable)
-      - expire_behavior: integer (nullable; 0=Remove role, 1=Kick)
-      - expire_grace_period: integer (nullable; days)
-      - user: User (nullable; linked user)
-      - account: object (external account)
-        - id: string (external ID)
-        - name: string
-      - synced_at: ISO8601 (nullable)
-      - subscriber_count: integer (nullable)
-      - revoked: boolean (nullable)
-      - application: Application (nullable)
-      - scopes: array of strings (nullable; OAuth2 scopes)
-    belongs_to:
-      - Guild
-    sensitivity: "External account linking; revoked status; subscriber counts"
-
-  # ---------------------------------------------------------------------------
-  # MODERATION
-  # ---------------------------------------------------------------------------
-
-  AuditLogEntry:
-    source: "https://discord.com/developers/docs/resources/audit-log"
-    description: "Guild action audit log entry"
-    id_field: "id (snowflake)"
-    key_fields:
-      - target_id: snowflake (nullable; ID of targeted entity)
-      - changes: array of AuditLogChange objects
-        - new_value: (varies)
-        - old_value: (varies)
-        - key: string (field name)
-      - user_id: snowflake (nullable; who performed action)
-      - id: snowflake
-      - action_type: integer (AuditLogEvent enum)
-      - options: object (nullable; contextual info)
-      - reason: string (nullable; action reason)
-    belongs_to:
-      - Guild
-    audit_log_action_types:
-      - 1: GUILD_UPDATE
-      - 10: CHANNEL_CREATE
-      - 11: CHANNEL_UPDATE
-      - 12: CHANNEL_DELETE
-      - 13: CHANNEL_OVERWRITE_CREATE
-      - 14: CHANNEL_OVERWRITE_UPDATE
-      - 15: CHANNEL_OVERWRITE_DELETE
-      - 20: MEMBER_KICK
-      - 21: MEMBER_PRUNE
-      - 22: MEMBER_BAN_ADD
-      - 23: MEMBER_BAN_REMOVE
-      - 24: MEMBER_UPDATE
-      - 25: MEMBER_ROLE_UPDATE
-      - 26: MEMBER_MOVE
-      - 27: MEMBER_DISCONNECT
-      - 28: BOT_ADD
-      - 30: ROLE_CREATE
-      - 31: ROLE_UPDATE
-      - 32: ROLE_DELETE
-      - 40: INVITE_CREATE
-      - 41: INVITE_UPDATE
-      - 42: INVITE_DELETE
-      - 50: WEBHOOK_CREATE
-      - 51: WEBHOOK_UPDATE
-      - 52: WEBHOOK_DELETE
-      - 60: EMOJI_CREATE
-      - 61: EMOJI_UPDATE
-      - 62: EMOJI_DELETE
-      - 72: MESSAGE_DELETE
-      - 73: MESSAGE_BULK_DELETE
-      - 74: MESSAGE_PIN
-      - 75: MESSAGE_UNPIN
-      - 80: INTEGRATION_CREATE
-      - 81: INTEGRATION_UPDATE
-      - 82: INTEGRATION_DELETE
-      - 83: STAGE_INSTANCE_CREATE
-      - 84: STAGE_INSTANCE_UPDATE
-      - 85: STAGE_INSTANCE_DELETE
-      - 90: STICKER_CREATE
-      - 91: STICKER_UPDATE
-      - 92: STICKER_DELETE
-      - 100: GUILD_SCHEDULED_EVENT_CREATE
-      - 101: GUILD_SCHEDULED_EVENT_UPDATE
-      - 102: GUILD_SCHEDULED_EVENT_DELETE
-      - 110: THREAD_CREATE
-      - 111: THREAD_UPDATE
-      - 112: THREAD_DELETE
-      - 121: APPLICATION_COMMAND_PERMISSION_UPDATE
-      - 130: SOUNDBOARD_SOUND_CREATE
-      - 131: SOUNDBOARD_SOUND_UPDATE
-      - 132: SOUNDBOARD_SOUND_DELETE
-      - 140: AUTO_MODERATION_RULE_CREATE
-      - 141: AUTO_MODERATION_RULE_UPDATE
-      - 142: AUTO_MODERATION_RULE_DELETE
-      - 143: AUTO_MODERATION_BLOCK_MESSAGE
-      - 144: AUTO_MODERATION_FLAG_TO_CHANNEL
-      - 145: AUTO_MODERATION_USER_COMMUNICATION_DISABLED
-      - 146: AUTO_MODERATION_QUARANTINE_USER
-      - 150: CREATOR_MONETIZATION_REQUEST_CREATED
-      - 151: CREATOR_MONETIZATION_TERMS_ACCEPTED
-      - 163: ONBOARDING_PROMPT_CREATE
-      - 164: ONBOARDING_PROMPT_UPDATE
-      - 165: ONBOARDING_PROMPT_DELETE
-      - 166: ONBOARDING_CREATE
-      - 167: ONBOARDING_UPDATE
-      - 190: HOME_SETTINGS_CREATE
-      - 191: HOME_SETTINGS_UPDATE
-    sensitivity: "Audit trail for all moderation actions; critical for investigation"
-
-  AutoModerationRule:
-    source: "https://discord.com/developers/docs/resources/auto-moderation"
-    description: "Automatic moderation rule"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - guild_id: snowflake
-      - name: string
-      - creator_id: snowflake
-      - event_type: integer (1=MESSAGE_SEND, 2=MEMBER_UPDATE)
-      - trigger_type: integer
-      - trigger_metadata: object
-      - actions: array of AutoModerationAction
-      - enabled: boolean
-      - exempt_roles: array of role_ids
-      - exempt_channels: array of channel_ids
-    trigger_types:
-      # Value 2 (HARMFUL_LINK) was removed; gap preserved.
-      - 1: KEYWORD (content contains specified keywords/regex)
-      - 3: SPAM (generic spam detection)
-      - 4: KEYWORD_PRESET (preset: profanity, sexual content, slurs)
-      - 5: MENTION_SPAM (excessive mentions)
-      - 6: MEMBER_PROFILE (username/nickname/pronouns check)
-    belongs_to:
-      - Guild
-    sensitivity: "Critical safety configuration; exempt lists; action chaining"
-
-  AutoModerationAction:
-    source: "https://discord.com/developers/docs/resources/auto-moderation#auto-moderation-action-object"
-    description: "Action taken when auto-mod rule triggers"
-    id_field: "N/A (nested in rule)"
-    action_types:
-      - 1: BLOCK_MESSAGE (block message, show user error)
-      - 2: SEND_ALERT_MESSAGE (log message to a channel)
-      - 3: TIMEOUT (timeout member; requires MODERATE_MEMBERS; KEYWORD/MENTION_SPAM only)
-      - 4: BLOCK_MEMBER_INTERACTION (block interactions; MEMBER_PROFILE only)
-    key_fields:
-      - type: integer (action type)
-      - metadata: object (nullable)
-        - channel_id: snowflake (for SEND_ALERT_MESSAGE)
-        - duration_seconds: integer (for TIMEOUT; max 2419200 / 28 days)
-        - custom_message: string (nullable; for BLOCK_MESSAGE — shown to the user)
-    sensitivity: "Enforcement mechanism; timeout duration; alert channels"
-
-  # ---------------------------------------------------------------------------
-  # COMMERCE & MONETIZATION
-  # ---------------------------------------------------------------------------
-
-  SKU:
-    source: "https://discord.com/developers/docs/resources/sku"
-    description: "Product/subscription definition"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - type: integer (1=SUBSCRIPTION, 2=SUBSCRIPTION_GROUP, 3=CONSUMABLE, 4=BUNDLE)
-      - application_id: snowflake
-      - name: string
-      - slug: string
-      - flags: integer (bitfield)
-    sensitivity: "Monetization tracking"
-
-  Entitlement:
-    source: "https://discord.com/developers/docs/resources/entitlement"
-    description: "User's access to a SKU (purchase/subscription)"
-    id_field: "id (snowflake)"
-    key_fields:
-      - id: snowflake
-      - sku_id: snowflake
-      - application_id: snowflake
-      - user_id: snowflake (nullable; user entitlements only)
-      - type: integer (1=PURCHASE, 2=PREMIUM_SUBSCRIPTION, 3=DEVELOPER_GIFT, 4=TEST_MODE_PURCHASE, 5=FREE_PURCHASE, 6=USER_GIFT, 7=PREMIUM_PURCHASE, 8=APPLICATION_SUBSCRIPTION)
-      - deleted: boolean
-      - starts_at: ISO8601 (nullable)
-      - ends_at: ISO8601 (nullable)
-      - guild_id: snowflake (nullable; guild subscriptions)
-    belongs_to:
-      - User (user_id, nullable)
-      - Guild (guild_id, nullable)
-    sensitivity: "Purchase history; subscription status (but not grounds for perks—Entitlement is)"
-
-  Subscription:
-    source: "https://discord.com/developers/docs/resources/entitlement"
-    description: "User's active subscription"
-    id_field: "user_id + sku_id (composite)"
-    key_fields:
-      - user_id: snowflake
-      - sku_id: snowflake
-      - is_renewal: boolean
-      - billing_cycle_anchor: integer (Unix timestamp)
-      - current_period_start: integer (Unix timestamp)
-      - current_period_end: integer (Unix timestamp)
-      - status: integer (0=ACTIVE, 1=ENDING, 2=INACTIVE)
-      - cancel_at: ISO8601 (nullable)
-      - cancel_at_period_end: boolean
-    sensitivity: "Subscription lifecycle tracking"
-
-  # ---------------------------------------------------------------------------
-  # INVITES
-  # ---------------------------------------------------------------------------
+    maps_to: Actor
+    description: Non-user sender that can post Messages to a Channel.
+    id: platform_ref
+    fields:
+      platform_id:    { type: string, required: true }
+      type:           { type: "enum:webhook_type" }
+      channel:        { type: platform_ref, required: true }
+      creator:        { type: platform_ref }
+      name:           { type: string }
+      application_id: { type: platform_ref }
+    edges:
+      - { name: channel_ref,  target: Channel, via: Webhook.channel, cardinality: one }
+      - { name: creator_user, target: User,    via: Webhook.creator, cardinality: one }
+    signals: [reputation]
 
   Invite:
-    source: "https://discord.com/developers/docs/resources/invite"
-    description: "Guild invitation link"
-    id_field: "code (string)"
-    key_fields:
-      - code: string (invite code)
-      - guild: Guild (nullable; if guild public)
-      - channel: Channel (nullable)
-      - inviter: User (nullable)
-      - target_user: User (nullable)
-      - target_user_type: integer (nullable; 1=Stream, 2=Embedded Application)
-      - approximate_member_count: integer (nullable)
-      - approximate_presence_count: integer (nullable)
-      - created_at: ISO8601 (nullable)
-      - expires_at: ISO8601 (nullable)
-      - temporary: boolean
-      - uses: integer (nullable)
-      - max_uses: integer (nullable; 0=unlimited)
-      - max_age: integer (nullable; 0=never)
-    references:
-      - Guild
-      - Channel
-      - User (inviter, target_user)
-    sensitivity: "Invite tracking; creation source; target user behavior"
+    maps_to: (no abstract counterpart)
+    description: Shareable invite code granting access to a Guild (raid vector).
+    id: "composite: {platform, code}"
+    fields:
+      code:        { type: string, required: true }
+      guild:       { type: platform_ref }
+      channel:     { type: platform_ref }
+      inviter:     { type: platform_ref }
+      target_user: { type: platform_ref }
+      uses:        { type: int }
+      max_uses:    { type: int }                              # 0 = unlimited
+      expires_at:  { type: datetime }
+    edges:
+      - { name: guild_ref,   target: Guild, via: Invite.guild,   cardinality: one }
+      - { name: inviter_ref, target: User,  via: Invite.inviter, cardinality: one }
 
-  InviteMetadata:
-    source: "https://discord.com/developers/docs/resources/invite#invite-metadata-object"
-    description: "Creator metadata for invite"
-    id_field: "N/A (nested in Invite)"
-    key_fields:
-      - uses: integer
-      - max_uses: integer
-      - max_age: integer
-      - temporary: boolean
-      - created_at: ISO8601
+  AutoModerationRule:
+    maps_to: (no abstract counterpart)
+    description: Guild automod rule — keyword, spam, mention, or profile filter.
+    id: platform_ref
+    fields:
+      platform_id:      { type: string, required: true }
+      guild:            { type: platform_ref, required: true }
+      name:             { type: string }
+      trigger_type:     { type: "enum:automod_trigger_type" }
+      trigger_metadata: { type: "dict" }                      # keywords / regex / presets
+      actions:          { type: "list<dict>" }                # [{type: enum:automod_action_type, metadata}]
+      enabled:          { type: bool }
+      exempt_roles:     { type: "list<platform_ref>" }
+      exempt_channels:  { type: "list<platform_ref>" }
+    edges:
+      - { name: guild_ref, target: Guild, via: AutoModerationRule.guild, cardinality: one }
 
----
-# ==============================================================================
-# GATEWAY EVENTS (Dispatch/Real-time)
-# ==============================================================================
+  GuildBan:
+    maps_to: ModerationDecision
+    description: Guild-level ban of a User (target_kind=actor, action=ban_from_space).
+    id: "composite: {platform, guild_id, user_id}"
+    fields:
+      guild:  { type: platform_ref, required: true }
+      user:   { type: platform_ref, required: true }
+      reason: { type: string }
+    edges:
+      - { name: guild_ref, target: Guild, via: GuildBan.guild, cardinality: one }
+      - { name: user_ref,  target: User,  via: GuildBan.user,  cardinality: one }
 
-gateway_events:
-  source: "https://discord.com/developers/docs/topics/gateway-events"
-  description: "WebSocket events dispatched by Discord to connected clients"
+  AuditLogEntry:
+    maps_to: Event
+    description: >
+      Guild audit-log entry. Realizes ModerationDecision when action_type is a
+      moderation verb (member_ban_add, member_kick, message_delete, auto_moderation_*).
+    id: platform_ref
+    fields:
+      platform_id: { type: string, required: true }
+      guild:       { type: platform_ref, required: true }
+      target_id:   { type: string }                           # polymorphic; depends on action_type
+      user:        { type: platform_ref }                     # actor performing the action
+      action_type: { type: "enum:audit_log_action" }
+      reason:      { type: string }
+      timestamp:   { type: datetime, required: true }
+    edges:
+      - { name: guild_ref, target: Guild, via: AuditLogEntry.guild, cardinality: one }
+      - { name: actor,     target: User,  via: AuditLogEntry.user,  cardinality: one }
 
-  session_lifecycle:
-    - READY: Client ready; initial state
-    - RESUMED: Session resumed after disconnect
-    - RECONNECT: Client should reconnect (opcode 7)
-    - INVALID_SESSION: Invalid session; reconnect required
-
-  user_events:
-    - USER_UPDATE: User object changed
-
-  presence_events:
-    - PRESENCE_UPDATE: User presence/status changed (game, state, etc.)
-    - TYPING_START: User started typing in channel
-
-  guild_events:
-    - GUILD_CREATE: Guild available to client
-    - GUILD_UPDATE: Guild metadata changed
-    - GUILD_DELETE: Guild unavailable or left
-    - GUILD_AUDIT_LOG_ENTRY_CREATE: Action logged to guild audit
-    - GUILD_INTEGRATIONS_UPDATE: Guild integrations updated
-    - GUILD_EMOJIS_UPDATE: Guild emojis changed
-    - GUILD_STICKERS_UPDATE: Guild stickers changed
-    - GUILD_SCHEDULED_EVENT_CREATE: Event scheduled
-    - GUILD_SCHEDULED_EVENT_UPDATE: Event updated
-    - GUILD_SCHEDULED_EVENT_DELETE: Event canceled
-    - GUILD_SCHEDULED_EVENT_USER_ADD: User RSVP'd
-    - GUILD_SCHEDULED_EVENT_USER_REMOVE: User un-RSVP'd
-    - GUILD_SOUNDBOARD_SOUND_CREATE: Soundboard sound created
-    - GUILD_SOUNDBOARD_SOUND_UPDATE: Soundboard sound updated
-    - GUILD_SOUNDBOARD_SOUND_DELETE: Soundboard sound deleted
-    - GUILD_SOUNDBOARD_SOUNDS_UPDATE: Multiple soundboard sounds updated
-    - SOUNDBOARD_SOUNDS: Bulk soundboard sound list response
-
-  member_events:
-    - GUILD_MEMBER_ADD: User joined guild
-    - GUILD_MEMBER_UPDATE: Member roles/flags changed
-    - GUILD_MEMBER_REMOVE: User left/kicked/banned
-    - GUILD_MEMBERS_CHUNK: Bulk members (from sync request)
-
-  ban_events:
-    - GUILD_BAN_ADD: User banned
-    - GUILD_BAN_REMOVE: Ban lifted
-
-  role_events:
-    - GUILD_ROLE_CREATE: Role created
-    - GUILD_ROLE_UPDATE: Role modified
-    - GUILD_ROLE_DELETE: Role deleted
-
-  channel_events:
-    - CHANNEL_CREATE: Channel created
-    - CHANNEL_UPDATE: Channel modified
-    - CHANNEL_DELETE: Channel deleted
-    - CHANNEL_PINS_UPDATE: Message pinned/unpinned (guild channel only)
-
-  thread_events:
-    - THREAD_CREATE: Thread created
-    - THREAD_UPDATE: Thread metadata changed
-    - THREAD_DELETE: Thread deleted
-    - THREAD_LIST_SYNC: Thread list sync (gateway client join)
-    - THREAD_MEMBER_UPDATE: Current user joined/left thread
-    - THREAD_MEMBERS_UPDATE: Other members added/removed
-
-  message_events:
-    - MESSAGE_CREATE: Message sent
-    - MESSAGE_UPDATE: Message edited
-    - MESSAGE_DELETE: Message deleted
-    - MESSAGE_DELETE_BULK: Multiple messages deleted
-    - MESSAGE_REACTION_ADD: Emoji reaction added
-    - MESSAGE_REACTION_REMOVE: Emoji reaction removed
-    - MESSAGE_REACTION_REMOVE_ALL: All reactions cleared
-    - MESSAGE_REACTION_REMOVE_EMOJI: All of specific emoji removed
-    - MESSAGE_POLL_VOTE_ADD: User voted on poll
-    - MESSAGE_POLL_VOTE_REMOVE: User removed poll vote
-
-  voice_events:
-    - VOICE_STATE_UPDATE: User voice state changed (join/leave/move)
-    - VOICE_SERVER_UPDATE: Guild voice server changed (reroute)
-    - VOICE_CHANNEL_EFFECT_SEND: Voice channel effect triggered
-
-  stage_events:
-    - STAGE_INSTANCE_CREATE: Stage session started
-    - STAGE_INSTANCE_UPDATE: Stage topic changed
-    - STAGE_INSTANCE_DELETE: Stage session ended
-
-  integration_events:
-    - INTEGRATION_CREATE: Integration added
-    - INTEGRATION_UPDATE: Integration updated
-    - INTEGRATION_DELETE: Integration removed
-
-  interaction_events:
-    - INTERACTION_CREATE: User used command, component, or modal
-
-  webhook_events:
-    - WEBHOOKS_UPDATE: Webhook added/modified/removed
-
-  invite_events:
-    - INVITE_CREATE: Invite created
-    - INVITE_DELETE: Invite deleted
-
-  application_events:
-    - APPLICATION_COMMAND_PERMISSIONS_UPDATE: Command permissions changed
-
-  auto_moderation_events:
-    - AUTO_MODERATION_RULE_CREATE: Auto-mod rule created
-    - AUTO_MODERATION_RULE_UPDATE: Rule updated
-    - AUTO_MODERATION_RULE_DELETE: Rule deleted
-    - AUTO_MODERATION_ACTION_EXECUTION: Rule triggered and action taken
-
-  entitlement_events:
-    - ENTITLEMENT_CREATE: SKU purchased
-    - ENTITLEMENT_UPDATE: Entitlement updated (renewal, cancellation)
-    - ENTITLEMENT_DELETE: Entitlement revoked/expired
-
-  subscription_events:
-    - SUBSCRIPTION_CREATE: Guild subscription created
-    - SUBSCRIPTION_UPDATE: Guild subscription renewed/paused/canceled
-    - SUBSCRIPTION_DELETE: Guild subscription deleted
-
----
-# ==============================================================================
-# RELATIONSHIP MAPPING (Trust & Safety Navigation)
-# ==============================================================================
-
-relationships:
-  guild_hierarchy:
-    Guild:
-      - owns: [Channel, Role, Emoji, Sticker, Integration, Webhook, AutoModerationRule, GuildScheduledEvent]
-      - contains: [GuildMember, GuildBan, Invite]
-      - tracked_in: [AuditLog, VoiceState]
-
-  message_graph:
-    Message:
-      - belongs_to: [Channel, Guild (nullable), Thread (nullable)]
-      - references: [User (author), User (mentions), Role (mention_roles), Channel (mention_channels), Message (replied_to)]
-      - contains: [Embed, Attachment, Reaction, Component, Sticker, Poll]
-      - created_by: [User, Webhook, Application (interaction)]
-
-  member_roles:
-    GuildMember:
-      - belongs_to: Guild
-      - has: [Role (array)]
-      - tracked_by: [AuditLog, Presence, VoiceState]
-
-  content_audit:
-    Content:
-      - Message -> audit via: [AuditLogEntry (no direct entry; see message delete audit)]
-      - Emoji -> audit via: [AuditLogEntry (CREATE, UPDATE, DELETE)]
-      - Sticker -> audit via: [AuditLogEntry (CREATE, UPDATE, DELETE)]
-      - Invite -> audit via: [AuditLogEntry (CREATE, DELETE)]
-      - Webhook -> audit via: [AuditLogEntry (CREATE, UPDATE, DELETE)]
-
-  moderation_surface:
-    AutoModerationRule:
-      - belongs_to: Guild
-      - triggers_on: [MESSAGE_CREATE, MESSAGE_EDIT, MEMBER_UPDATE events]
-      - exempts: [Role, Channel]
-      - executes: [AutoModerationAction (BLOCK, ALERT, TIMEOUT, QUARANTINE)]
-    AuditLogEntry:
-      - captures: [Member adds/removes, bans, role changes, channel changes, emoji, integrations, auto-mod actions]
-      - creator: User
-      - target: [User, Channel, Role, Guild, Emoji, Sticker, Integration, Webhook, AutoModerationRule]
-
-  commerce:
-    SKU:
-      - entitlements: [Entitlement (array)]
-    Entitlement:
-      - belongs_to: [User (user_id nullable) OR Guild (guild_id nullable)]
-      - references: SKU
-    Subscription:
-      - user_subscription: Entitlement (user subscription type)
-      - guild_subscription: Entitlement (guild subscription type)
-
----
-# ==============================================================================
-# ENUMS & BITFIELDS (Comprehensive)
-# ==============================================================================
-
+# ============================================================
+# ENUMS (Discord-specific; flow-style where short)
+# ============================================================
 enums:
-  ChannelType:
-    0: GUILD_TEXT
-    1: DM
-    2: GUILD_VOICE
-    3: GROUP_DM
-    4: GUILD_CATEGORY
-    5: GUILD_ANNOUNCEMENT
-    10: ANNOUNCEMENT_THREAD
-    11: PUBLIC_THREAD
-    12: PRIVATE_THREAD
-    13: GUILD_STAGE_VOICE
-    14: GUILD_DIRECTORY
-    15: GUILD_FORUM
-    16: GUILD_MEDIA
+  actor_type:              [human, bot, system]
+  # Subset of channel-type enum; values match Discord's wire names lowercased.
+  channel_kind:            [guild_text, dm, guild_voice, group_dm, guild_category, guild_announcement, announcement_thread, public_thread, private_thread, guild_stage_voice, guild_forum, guild_media]
+  # Vocabulary for polymorphic refs; values name this fork's Content entities.
+  content_kind:            [message, attachment, emoji]
+  # Subset of ~35 message types; kept: moderation-relevant.
+  message_type:            [default, user_join, reply, auto_moderation_action, thread_created, chat_input_command, context_menu_command]
+  verification_level:      [none, low, medium, high, very_high]
+  explicit_content_filter: [disabled, members_without_roles, all_members]
+  nsfw_level:              [default, explicit, safe, age_restricted]
+  # Subset of ~50 GuildFeature values; kept: T&S-signal-bearing.
+  guild_feature:           [COMMUNITY, VERIFIED, PARTNERED, DISCOVERABLE, AUTO_MODERATION, INVITES_DISABLED, RAID_ALERTS_DISABLED, MEMBER_VERIFICATION_GATE_ENABLED]
+  webhook_type:            [incoming, channel_follower, application]
+  automod_trigger_type:    [keyword, spam, keyword_preset, mention_spam, member_profile]  # value 2 (harmful_link) retired
+  automod_action_type:     [block_message, send_alert_message, timeout, block_member_interaction]
+  # Subset of ~60 audit-log action types; kept: T&S-critical moderation actions.
+  audit_log_action:
+    [guild_update, channel_update, member_kick, member_prune, member_ban_add, member_ban_remove,
+     member_role_update, role_update, message_delete, message_bulk_delete,
+     webhook_create, webhook_update, webhook_delete,
+     auto_moderation_rule_create, auto_moderation_rule_update, auto_moderation_rule_delete,
+     auto_moderation_block_message, auto_moderation_flag_to_channel,
+     auto_moderation_user_communication_disabled, auto_moderation_quarantine_user]
 
-  GuildFeature:
-    values:
-      - ANIMATED_BANNER
-      - ANIMATED_ICON
-      - APPLICATION_COMMAND_PERMISSION_V2
-      - AUTO_MODERATION
-      - BANNER
-      - BOT_TAG_REQUEST_ABLE
-      - CHANNEL_BANNERS
-      - COMMUNITY
-      - CREATOR_MONETIZABLE_PROVISIONAL
-      - CREATOR_STORE_PAGE
-      - DEVELOPER_SUPPORT_SERVER
-      - DISCOVERABLE
-      - FEATUREABLE
-      - FESTIVAL_SEASON_CAMPAIGN_ENABLED
-      - FORCE_RELAY
-      - GUILD_ONBOARDING
-      - GUILD_ONBOARDING_EVER_ENABLED
-      - GUILD_SERVER_GUIDE
-      - GUILD_WEB_PAGE_VANITY_URL
-      - HAS_DIRECTORY_ENTRY
-      - HAS_MONETIZED_PRODUCTS
-      - HAS_ROLE_SUBSCRIPTIONS
-      - HAS_SOUNDBOARD
-      - HAS_SURVEYS
-      - HOME
-      - INVITE_SPLASH
-      - INVITES_DISABLED
-      - LINKED_TO_HUB
-      - MEMBER_VERIFICATION_GATE_ENABLED
-      - MOBILE_BANNERS
-      - MORE_EMOJI
-      - MORE_STICKERS
-      - NEWS
-      - PARTNERED
-      - PREVIEW_ENABLED
-      - RAID_ALERTS_DISABLED
-      - ROLE_ICONS
-      - ROLE_SUBSCRIPTIONS_ENABLED
-      - ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE
-      - SOUNDBOARD
-      - SUMMARIES_ENABLED
-      - SHARD
-      - TEXT_IN_VOICE_ENABLED
-      - TICKETED_EVENTS_ENABLED
-      - VANITY_URL
-      - VERIFIED
-      - VIP_REGIONS
-      - VOICE_IN_THREADS
-      - WELCOME_SCREEN_ENABLED
-
-  VerificationLevel:
-    0: NONE
-    1: LOW
-    2: MEDIUM
-    3: HIGH
-    4: VERY_HIGH
-
-  ExplicitContentFilterLevel:
-    0: DISABLED
-    1: MEMBERS_WITHOUT_ROLES
-    2: ALL_MEMBERS
-
-  NSFWLevel:
-    0: DEFAULT
-    1: EXPLICIT
-    2: SAFE
-    3: AGE_RESTRICTED
-
-  MFALevel:
-    0: NONE
-    1: ELEVATED
-
-  PremiumTier:
-    0: NONE
-    1: TIER_1
-    2: TIER_2
-    3: TIER_3
-
-  MessageNotificationLevel:
-    0: ALL_MESSAGES
-    1: ONLY_MENTIONS
-
-  PremiumType:
-    0: NONE
-    1: NITRO_CLASSIC
-    2: NITRO
-    3: NITRO_BASIC
-
-  InteractionType:
-    1: PING
-    2: APPLICATION_COMMAND
-    3: MESSAGE_COMPONENT
-    4: APPLICATION_COMMAND_AUTOCOMPLETE
-    5: MODAL_SUBMIT
-
-  ApplicationCommandType:
-    1: CHAT_INPUT
-    2: USER
-    3: MESSAGE
-
-  AutoModerationEventType:
-    1: MESSAGE_SEND
-    2: MEMBER_UPDATE
-
-  AutoModerationTriggerType:
-    # Value 2 (HARMFUL_LINK) was removed; gap preserved.
-    1: KEYWORD
-    3: SPAM
-    4: KEYWORD_PRESET
-    5: MENTION_SPAM
-    6: MEMBER_PROFILE
-
-  AutoModerationActionType:
-    1: BLOCK_MESSAGE
-    2: SEND_ALERT_MESSAGE
-    3: TIMEOUT
-    4: BLOCK_MEMBER_INTERACTION
-
-  EntitlementType:
-    1: PURCHASE
-    2: PREMIUM_SUBSCRIPTION
-    3: DEVELOPER_GIFT
-    4: TEST_MODE_PURCHASE
-    5: FREE_PURCHASE
-    6: USER_GIFT
-    7: PREMIUM_PURCHASE
-    8: APPLICATION_SUBSCRIPTION
-
-  SubscriptionStatus:
-    0: ACTIVE
-    1: ENDING
-    2: INACTIVE
-
-  SKUType:
-    1: SUBSCRIPTION
-    2: SUBSCRIPTION_GROUP
-    3: CONSUMABLE
-    4: BUNDLE
-
-  StagePrivacyLevel:
-    1: GUILD_ONLY
-    2: PUBLIC
-
-  GuildScheduledEventStatus:
-    1: SCHEDULED
-    2: ACTIVE
-    3: COMPLETED
-    4: CANCELED
-
-  GuildScheduledEventEntityType:
-    1: STAGE_INSTANCE
-    2: VOICE
-    3: EXTERNAL
-
----
-# ==============================================================================
-# CRITICAL FIELDS FOR TRUST & SAFETY AGENTS
-# ==============================================================================
-
-safety_critical_fields:
-  identity_verification:
-    - User.verified (email verification)
-    - User.mfa_enabled (account security)
-    - User.bot (flag; bot vs human)
-    - User.system (flag; system user)
-    - GuildMember.pending (incomplete onboarding; risky member)
-
-  moderation_actions:
-    - GuildMember.communication_disabled_until (timeout/mute end)
-    - GuildBan (ban records)
-    - Role.managed (bot-managed; trustworthiness)
-    - AutoModerationRule.enabled (enforcement status)
-    - AuditLogEntry.action_type (what action; enum critical)
-    - AuditLogEntry.user_id (who performed; audit chain)
-    - AuditLogEntry.reason (intent)
-
-  content_control:
-    - Guild.verification_level (join friction)
-    - Guild.explicit_content_filter (filter strictness)
-    - Guild.nsfw_level (adult content flag)
-    - Channel.nsfw (channel age gate)
-    - Message.type (system vs user; automation)
-    - Message.flags (EPHEMERAL, LOADING, etc.)
-    - Message.mention_everyone (spam indicator)
-
-  social_graph:
-    - GuildMember.roles (permission/status)
-    - GuildMember.joined_at (tenure; infiltration detection)
-    - Relationship.type (friend/blocked)
-    - Invite.uses, max_uses, max_age (invite spam)
-    - Invite.target_user (invite targeting)
-
-  real_time:
-    - VoiceState.channel_id (voice activity; evasion detection)
-    - VoiceState.self_stream (streaming to guild; broadcast)
-    - Presence.status (online/idle/dnd; activity)
-    - MESSAGE_CREATE event (content stream; real-time moderation)
-    - AUTO_MODERATION_ACTION_EXECUTION (enforcement visibility)
-
-  commerce:
-    - Entitlement.type (user vs guild subscription)
-    - Entitlement.deleted (revocation/chargeback)
-    - SKU.flags (restrictions)
-
-  compliance:
-    - Guild.features (includes COMMUNITY; affects moderation baseline)
-    - Guild.verification_level (baseline safety requirement)
-    - AuditLogEntry (complete audit trail)
-    - ApplicationCommand.nsfw (age-gating)
-
----
-# Notes for T&S Implementation:
-# 1. MESSAGE_CONTENT intent is PRIVILEGED; requires explicit approval.
-# 2. Audit logs do not capture individual MESSAGE events directly; use MESSAGE_CREATE gateway event for real-time moderation.
-# 3. Auto Moderation rules execute client-side (user sees error); alert messages log to a channel; timeout/quarantine are async actions.
-# 4. Entitlements are the source of truth for perks, not subscription events.
-# 5. Roles with bot_id indicate bot-managed; integration_id indicates third-party service-managed.
-# 6. GuildMember.pending blocks message sending until onboarding complete (first layer of T&S friction).
-# 7. Webhooks (especially followers) enable cross-guild amplification; track webhook creation in audit logs.
-# 8. Components (buttons, selects) can be stateful via custom_id; monitor for phishing/click-jacking.
+# ============================================================
+# AGENT CONTRACT (Discord-specific notes)
+# ============================================================
+agent_contract:
+  privileged_intents: |
+    Message.content requires the MESSAGE_CONTENT privileged intent
+    (approval-gated). Without it, Message fields populate but content is null.
+  audit_log_is_event_feed: |
+    AuditLogEntry is the canonical Event / ModerationDecision stream for a
+    Guild. MESSAGE_DELETE is logged; MESSAGE_CREATE is NOT — use the gateway
+    MESSAGE_CREATE dispatch for real-time content.
+  webhook_amplification: |
+    Channel-follower webhooks (Webhook.type=channel_follower) repost Messages
+    across Guilds — a cross-Guild amplification vector worth tracking.
+  fork_polymorphism: |
+    Where the abstract uses `kind:` to discriminate within one entity, this
+    fork splits by entity name:
+      Content   → Message, Attachment, Emoji
+      Space     → Guild, Channel (Channel further discriminates via `kind:`)
+      Actor     → User, Webhook
+      ModDec.   → GuildBan; AuditLogEntry rows with moderation action_type
+  coordinated_abuse_traversal: |
+    To walk a coordinated ring from a flagged Message:
+      1. Message → author (User)
+      2. User.cluster_memberships (signal) → Cluster (abstract)
+      3. Cluster.member_actors → other Users in the ring
+      4. Each User.authored_messages → additional ring content
+      5. ModerationDecision with target_kind=cluster for ring-level action
+    Cluster itself lives in the abstract; this fork provides the entry
+    signal and member-fanout traversal.
