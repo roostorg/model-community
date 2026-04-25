@@ -9,10 +9,10 @@
 # agents. Keep it small, typed, and explicit. Long platform-specific
 # descriptions belong in comments on your fork, not here.
 #
-# Companion files (same directory):
-#   signals.yaml        signals that attach to the entities below
-#   playbooks/          per-harm investigation playbooks
-#   harm_taxonomy.yaml  harm categories + severity scale
+# Companion files:
+#   signals.yaml             (same dir) signals that attach to entities
+#   ../playbooks/            per-harm investigation + production playbooks
+#   ../harm_taxonomy.yaml    harm categories + severity scale
 #
 # Last updated: 2026-04-17
 
@@ -22,8 +22,8 @@ meta:
 
 companion_files:
   signals: signals.yaml
-  playbooks: playbooks/
-  harm_taxonomy: harm_taxonomy.yaml
+  playbooks: ../playbooks/
+  harm_taxonomy: ../harm_taxonomy.yaml
 
 # ============================================================
 # KEY SHAPES (referenced below)

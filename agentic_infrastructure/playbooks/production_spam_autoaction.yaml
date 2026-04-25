@@ -1,0 +1,230 @@
+# Production Playbook — High-confidence Spam Auto-action
+#
+# Persona:   production agent
+# Authority: act within tight thresholds; log every action to Coop;
+#            sample for human QA. Anything ambiguous escalates to
+#            the investigation playbook — this agent does not guess.
+# Trigger:   New Content arrives with a spam classifier score above
+#            an auto-action threshold AND no positive trust signals
+#            on the author.
+#
+# Reads abstract_entity_schema.yaml for entity shape, signals.yaml
+# for slot semantics, and harm_taxonomy.yaml for the policy floor.
+# All SQL is placeholder — integrators bind to their warehouse.
+#
+# Last updated: 2026-04-24
+
+meta:
+  playbook_id:   production_spam_autoaction
+  version:       0.1
+  persona:       production
+  authority:     auto_action
+  companion_files:
+    entities:    ../entity_schema/abstract_entity_schema.yaml
+    signals:     ../entity_schema/signals.yaml
+    taxonomy:    ../harm_taxonomy.yaml
+
+# ============================================================
+# TRIGGER
+# ============================================================
+trigger:
+  on_entity: Content
+  when:
+    "classifier_scores.spam":          ">= 0.95"
+    # harm_labels is list<{category, severity, confidence}>; check explicitly.
+    "any(l.severity=='critical' for l in harm_labels)": false
+    "author.is_verified":              false
+
+# ============================================================
+# INPUTS
+# ============================================================
+inputs:
+  entities: [Content, Actor]
+  signals:
+    Content: [classifier_scores, harm_labels, similarity_hash]
+    Actor:   [reputation, trust_tier, cluster_memberships]
+
+# ============================================================
+# OPERATING LIMITS — hard caps. Breach → escalate, do not act.
+# ============================================================
+limits:
+  max_actions_per_minute_per_actor: 5
+  max_actions_per_hour_global:      10000
+  min_grounded_confidence:          0.9
+  forbidden_categories:             [csam, violent_threats, off_platform_harm, self_harm]
+  forbidden_actions:                [account_suspend, ban_from_space]
+  sample_for_human_qa:              0.02        # 2% of actions reviewed by a human
+
+# ============================================================
+# QUERY CATALOG (placeholder SQL)
+# ============================================================
+queries:
+
+  - name: get_content_with_signals
+    params: { platform: string, platform_id: string }
+    returns: [platform_id, author_platform_id, parent_space_id, body_text, classifier_scores, harm_labels, similarity_hash, created_at]
+    sql: |
+      -- TODO(integrator): join Content with its realtime signals.
+      SELECT c.platform_id,
+             c.author_platform_id,
+             c.parent_space_id,
+             c.body_text,
+             s.classifier_scores,
+             s.harm_labels,
+             s.similarity_hash,
+             c.created_at
+      FROM   content c
+      JOIN   content_signals s
+        ON   s.platform = c.platform
+       AND   s.platform_id = c.platform_id
+      WHERE  c.platform = :platform
+        AND  c.platform_id = :platform_id;
+
+  - name: get_actor_trust
+    params: { platform: string, actor_id: string }
+    returns: [reputation, trust_tier, is_verified, cluster_memberships]
+    sql: |
+      -- TODO(integrator): join trust + clustering stores.
+      SELECT reputation,
+             trust_tier,
+             is_verified,
+             cluster_memberships
+      FROM   actor_signals
+      WHERE  platform = :platform
+        AND  actor_id = :actor_id;
+
+  - name: count_recent_actions_for_actor
+    params: { platform: string, actor_id: string, window_seconds: int }
+    returns: [action_count]
+    sql: |
+      -- TODO(integrator): counts BOTH actor-targeted decisions AND
+      -- content-targeted decisions whose author is :actor_id. Without
+      -- the second arm a single actor can be auto-removed unbounded.
+      SELECT COUNT(*) AS action_count
+      FROM   moderation_decisions d
+      LEFT JOIN content c
+        ON   d.target_kind = 'content'
+       AND  c.platform = d.target_platform
+       AND  c.platform_id = d.target_platform_id
+      WHERE  d.decided_at >= now() - make_interval(secs => :window_seconds)
+        AND ((d.target_kind = 'actor'
+              AND d.target_platform = :platform
+              AND d.target_platform_id = :actor_id)
+          OR (d.target_kind = 'content'
+              AND c.platform = :platform
+              AND c.author_platform_id = :actor_id));
+
+  - name: insert_moderation_decision
+    params: { decision_json: dict }
+    returns: [decision_id]
+    sql: |
+      -- TODO(integrator): write-through to the ModerationDecision store
+      -- and emit an Event so the audit log + Coop reflect the action.
+      INSERT INTO moderation_decisions (payload)
+      VALUES (:decision_json)
+      RETURNING decision_id;
+
+# ============================================================
+# WALK
+# ============================================================
+walk:
+
+  - id: 1_load_content
+    call: get_content_with_signals
+    with: { platform: trigger.platform, platform_id: trigger.platform_id }
+    bind: content
+
+  - id: 2_load_author
+    call: get_actor_trust
+    with: { platform: trigger.platform, actor_id: content.author_platform_id }
+    bind: author
+
+  - id: 3_rate_limit_check
+    call: count_recent_actions_for_actor
+    with: { platform: trigger.platform, actor_id: content.author_platform_id, window_seconds: 60 }
+    bind: rate
+
+  - id: 4_score
+    derive: |
+      grounded_confidence = min(
+        content.classifier_scores.spam,
+        1.0 - author.reputation,
+        0.5 if author.trust_tier in ["trusted", "partner"] else 1.0
+      )
+      llm_uncertainty = 0.0    # rule-based path; no LLM step here
+      final_confidence = grounded_confidence * (1.0 - llm_uncertainty)
+    bind: score
+
+# ============================================================
+# DECIDE
+#
+# Conservative by design. Anything that does not match
+# `auto_remove` falls through to `escalate` — never silently dropped.
+# ============================================================
+decide:
+
+  - rule_id: bail_rate_limit
+    when: "rate.action_count >= limits.max_actions_per_minute_per_actor"
+    do:   escalate
+    to:   investigation_coordinated_commenting
+    reason: "Per-actor rate limit hit; possible cluster signal."
+
+  - rule_id: bail_trusted_actor
+    when: "author.trust_tier in ['trusted', 'partner']"
+    do:   escalate
+    to:   needs_review
+    reason: "Trusted actor — never auto-action."
+
+  - rule_id: auto_remove
+    when: |
+      score.final_confidence >= limits.min_grounded_confidence
+      AND content.classifier_scores.spam >= 0.95
+      AND author.reputation < 0.3
+    act:
+      category:    spam                       # from harm_taxonomy.yaml
+      severity:    low                        # taxonomy default
+      action:      content_remove             # taxonomy default
+      target_kind: content
+      target:      content
+
+  - rule_id: escalate_default
+    when: "default"
+    do:   escalate
+    to:   investigation_coordinated_commenting
+    reason: "Did not clear auto-action threshold."
+
+# ============================================================
+# ACT — the only step that mutates state. Logged + sampled.
+# ============================================================
+act:
+  call: insert_moderation_decision
+  with:
+    decision_json:
+      platform_id:      "<minted by decision store>"
+      decided_at:       "now()"
+      # decided_by_actor is platform_ref per the schema, not a string.
+      decided_by_actor: { platform: "internal", platform_id: "agent:production_spam_autoaction" }
+      source:           classifier              # enum:decision_source
+      action:           "{decide.action}"
+      target_kind:      "{decide.target_kind}"
+      target:           { platform: "{trigger.platform}", platform_id: "{content.platform_id}" }
+      severity:         "{decide.severity}"
+      reason_text:      "{rule_id}: spam={content.classifier_scores.spam}, rep={author.reputation}, conf={score.final_confidence}"
+      evidence_refs:    [{ platform: "{trigger.platform}", platform_id: "{content.platform_id}" }]
+      appeal_state:     appealable
+  post_action:
+    sample_for_qa:      "random() < limits.sample_for_human_qa"
+    emit_event:         true                    # writes to Event entity (audit log)
+
+# ============================================================
+# PLATFORM NOTES
+# ============================================================
+platform_notes:
+  youtube: |
+    Content = Comment under a Video. content_remove maps to the
+    YouTube comment moderation API. Do not auto-remove top-level
+    creator content — only comments — in this template.
+  discord: |
+    Content = Message in a Channel. content_remove maps to message
+    delete. Auto-action restricted to public channel messages; DMs
+    require human review per limits.forbidden_actions.

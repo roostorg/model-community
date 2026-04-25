@@ -1,0 +1,269 @@
+# Investigation Playbook — Coordinated Commenting
+#
+# Persona:   investigation agent
+# Authority: recommend only (opens a Case, does NOT enforce)
+# Trigger:   Report on Content with category in
+#            { spam, coordinated_inauthentic_behavior }
+#
+# The agent reads abstract_entity_schema.yaml for entity/edge shape,
+# signals.yaml for what attaches to each entity, and
+# harm_taxonomy.yaml for category defaults. This file tells it the
+# *order* to walk and the thresholds that turn evidence into a
+# recommendation. The agent never writes SQL — it calls named
+# queries from the catalog below.
+#
+# Last updated: 2026-04-24
+
+meta:
+  playbook_id:    investigation_coordinated_commenting
+  version:        0.1
+  persona:        investigation
+  authority:      recommend_only
+  companion_files:
+    entities:     ../entity_schema/abstract_entity_schema.yaml
+    signals:      ../entity_schema/signals.yaml
+    taxonomy:     ../harm_taxonomy.yaml
+
+# ============================================================
+# TRIGGER
+# ============================================================
+trigger:
+  on_entity:    Report
+  when:
+    target_kind: content
+    category_in: [spam, coordinated_inauthentic_behavior]
+    state:       open
+
+# ============================================================
+# INPUTS — the agent may read only these
+# ============================================================
+inputs:
+  entities: [Report, Content, Actor, Space, Cluster]
+  signals:
+    Actor:   [reputation, trust_tier, device_fingerprints, cluster_memberships]
+    Content: [harm_labels, similarity_hash, classifier_scores]
+    Space:   [risk_score, recent_moderation_rate]
+    Cluster: [coordination_score, confidence]
+
+# ============================================================
+# QUERY CATALOG (placeholder SQL — bind to your warehouse)
+#
+# Each query returns columns that map to entity / signal fields.
+# Integrators rewrite the SQL; agents call by `name` only.
+# ============================================================
+queries:
+
+  - name: get_report
+    params: { report_id: string }
+    returns: [report_id, target_platform, target_platform_id, target_kind, category, filed_at, state]
+    sql: |
+      -- TODO(integrator): bind to your reports table.
+      SELECT report_id,
+             target_platform,
+             target_platform_id,
+             target_kind,
+             category,
+             filed_at,
+             state
+      FROM   reports
+      WHERE  report_id = :report_id;
+
+  - name: get_content
+    params: { platform: string, platform_id: string }
+    returns: [platform_id, kind, author_platform_id, parent_space_id, body_text, created_at]
+    sql: |
+      -- TODO(integrator): bind to your content table.
+      SELECT platform_id,
+             kind,
+             author_platform_id,
+             parent_space_id,
+             body_text,
+             created_at
+      FROM   content
+      WHERE  platform = :platform
+        AND  platform_id = :platform_id;
+
+  - name: get_actor_signals
+    params: { platform: string, actor_id: string }
+    returns: [reputation, trust_tier, device_fingerprints, cluster_memberships]
+    sql: |
+      -- TODO(integrator): join your trust + device + clustering stores.
+      SELECT reputation,
+             trust_tier,
+             device_fingerprints,         -- list<{fingerprint_hash, last_seen}>
+             cluster_memberships          -- list<{cluster_id, confidence}>
+      FROM   actor_signals
+      WHERE  platform = :platform
+        AND  actor_id = :actor_id;
+
+  - name: list_sibling_content
+    params: { platform: string, space_id: string, since: datetime, limit: int }
+    returns: [platform_id, author_platform_id, similarity_hash, classifier_scores, created_at]
+    sql: |
+      -- TODO(integrator): siblings = Content under the same parent_space.
+      SELECT platform_id,
+             author_platform_id,
+             similarity_hash,
+             classifier_scores,           -- dict<model_name, score>
+             created_at
+      FROM   content_with_signals
+      WHERE  platform = :platform
+        AND  parent_space_id = :space_id
+        AND  created_at >= :since
+      LIMIT  :limit;
+
+  - name: get_cluster
+    params: { platform: string, cluster_id: string }
+    returns: [cluster_id, kind, member_count, coordination_score, confidence, members]
+    sql: |
+      -- TODO(integrator): join Cluster entity with its signals.
+      SELECT cluster_id,
+             kind,
+             member_count,
+             coordination_score,
+             confidence,
+             members                      -- list<polymorphic_ref>
+      FROM   clusters_with_signals
+      WHERE  platform = :platform
+        AND  cluster_id = :cluster_id;
+
+# ============================================================
+# WALK — ordered steps. Each step is one query + a binding.
+# ============================================================
+walk:
+
+  - id: 1_load_report
+    call: get_report
+    bind: report
+
+  - id: 2_load_flagged_content
+    call: get_content
+    with: { platform: report.target_platform, platform_id: report.target_platform_id }
+    bind: flagged
+
+  - id: 3_load_author_signals
+    call: get_actor_signals
+    with: { platform: report.target_platform, actor_id: flagged.author_platform_id }
+    bind: author
+
+  - id: 4_fan_out_siblings
+    call: list_sibling_content
+    with:
+      platform: report.target_platform
+      space_id: flagged.parent_space_id
+      since:    "now() - 7d"
+      limit:    500
+    bind: siblings
+
+  - id: 5_collect_near_duplicates
+    # Catches both byte-identical hashes and AI-paraphrased variants
+    # via the precomputed near_duplicate_cluster signal on Content.
+    derive: |
+      near_dupes = [s for s in siblings
+                    if s.author_platform_id != flagged.author_platform_id
+                    AND (s.similarity_hash == flagged.similarity_hash
+                         OR s.near_duplicate_cluster == flagged.near_duplicate_cluster)]
+    bind: near_dupes
+
+  - id: 6_resolve_clusters
+    # Iterate every cluster the author belongs to, not just the first.
+    when: "len(author.cluster_memberships) > 0"
+    foreach: "m in author.cluster_memberships"
+    call: get_cluster
+    with:
+      platform:   report.target_platform
+      cluster_id: m.cluster_id
+    bind: clusters     # list<Cluster>
+
+  - id: 6b_derive_fingerprint_cohort
+    # Fallback when clustering pipeline has not materialized a Cluster.
+    # Group near_dupe authors that share at least one device fingerprint.
+    when: "len(clusters) == 0 AND len(near_dupes) >= 3"
+    derive: |
+      author_ids   = distinct(s.author_platform_id for s in near_dupes)
+      cohort       = [a for a in author_ids
+                      if intersects(actor_signals(a).device_fingerprints,
+                                    author.device_fingerprints)]
+    bind: fingerprint_cohort
+
+# ============================================================
+# DECIDE — thresholds → category, severity, action.
+# Every recommendation cites a rule id so a reviewer can audit.
+#
+# Confidence model (per blog):
+#   grounded_confidence = how complete + consistent the evidence is
+#   llm_uncertainty     = ambiguity in the agent's reasoning
+#   final = grounded_confidence * (1 - llm_uncertainty)
+#   llm_uncertainty can only REDUCE confidence, never inflate it.
+# ============================================================
+decide:
+
+  - rule_id: lone_spammer
+    when: "len(near_dupes) < 3 AND author.reputation < 0.3"
+    recommend:
+      category:    spam                        # from harm_taxonomy.yaml
+      severity:    low                         # taxonomy default
+      action:      content_remove              # taxonomy default
+      target_kind: content
+      target:      flagged
+      queue:       auto_action
+
+  - rule_id: spam_ring
+    when: |
+      any(c.coordination_score >= 0.8 AND c.confidence >= 0.7 for c in clusters)
+      AND len(near_dupes) >= 3
+    recommend:
+      category:    coordinated_inauthentic_behavior   # subcategory: spam_ring
+      severity:    high
+      action:      cluster_flag
+      target_kind: cluster
+      target:      "first(c for c in clusters if c.coordination_score >= 0.8)"
+      queue:       needs_review
+
+  - rule_id: pre_cluster_ring
+    # No materialized Cluster, but shared fingerprints + near-duplicates
+    # across distinct authors is enough to recommend review.
+    when: "len(fingerprint_cohort) >= 3 AND len(near_dupes) >= 3"
+    recommend:
+      category:    coordinated_inauthentic_behavior
+      severity:    high
+      action:      cluster_flag
+      target_kind: cluster
+      target:      fingerprint_cohort       # materialize as Cluster downstream
+      queue:       needs_review
+
+  - rule_id: ambiguous_route_to_classification
+    when: "default"
+    recommend:
+      queue: needs_classification
+      note:  "Pattern did not match any rule cleanly. Taxonomy gap candidate."
+
+# ============================================================
+# OUTPUT — the Case the agent opens. No enforcement.
+# ============================================================
+output:
+  open: Case
+  fields:
+    platform_id:       "<minted by case store>"
+    opened_at:         "now()"
+    state:             open
+    summary:           "{rule_id}: {category} on {flagged.platform_id}"
+    related_reports:   [report.report_id]
+    related_clusters:  "[c.cluster_id for c in clusters]"
+    # evidence_refs is list<polymorphic_ref> per the schema.
+    evidence_refs: |
+      [{target_kind: content, target: flagged}] +
+      [{target_kind: content, target: s} for s in near_dupes]
+    decisions:         []                        # investigation agent does not enforce
+    assigned_reviewer: "<from queue.routing>"
+
+# ============================================================
+# PLATFORM NOTES — both reference forks already support this walk.
+# ============================================================
+platform_notes:
+  youtube: |
+    Space = Video; sibling Content = Comments under the same Video.
+    Actor = Channel. similarity_hash on Comments is sufficient.
+  discord: |
+    Space = Channel (or Guild for cross-channel rings). Sibling
+    Content = Messages in the same Channel. Actor = User.
