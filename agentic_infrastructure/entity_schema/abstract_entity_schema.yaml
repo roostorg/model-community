@@ -17,7 +17,7 @@
 # Last updated: 2026-04-17
 
 meta:
-  template_version: 0.3
+  template_version: 0.1
   purpose: agent-navigable entity template for T&S investigations
 
 companion_files:
@@ -154,11 +154,13 @@ entities:
       target:           { type: platform_ref, required: true }
       severity:         { type: "enum:severity" }
       reason_text:      { type: string }
-      evidence_refs:    { type: "list<platform_ref>" }
+      evidence_refs:    { type: "list<polymorphic_ref>" }
       appeal_state:     { type: "enum:appeal_state" }
     edges:
-      - { name: decider,  target: Actor,   via: ModerationDecision.decided_by_actor, cardinality: one }
-      - { name: evidence, target: Content, via: ModerationDecision.evidence_refs,    cardinality: many }
+      - { name: decider,           target: Actor,   via: ModerationDecision.decided_by_actor, cardinality: one }
+      - { name: evidence_content,  target: Content, via: ModerationDecision.evidence_refs,    cardinality: many, when: "target_kind=content" }
+      - { name: evidence_actors,   target: Actor,   via: ModerationDecision.evidence_refs,    cardinality: many, when: "target_kind=actor" }
+      - { name: evidence_clusters, target: Cluster, via: ModerationDecision.evidence_refs,    cardinality: many, when: "target_kind=cluster" }
 
   Report:
     description: A user- or system-filed flag. May produce zero or more ModerationDecisions.
@@ -234,7 +236,7 @@ enums:
   case_state:       [open, under_review, resolved, closed]
   subject_kind:     [actor, content, space, membership, cluster, case, moderation_decision]
   event_verb:       [created, updated, deleted, posted, joined, left, reacted, moderated, reported]
-  harm_category:    defined_in_harm_taxonomy.yaml
+  harm_category:    "../harm_taxonomy.yaml"
 
 # ============================================================
 # AGENT CONTRACT (read by agents before planning)

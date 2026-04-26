@@ -2,7 +2,7 @@
 
 This directory contains reference templates for building trust & safety agents that can navigate an organization's data the way a human investigator would. The goal is to give safety teams a starting point they can fork, customize, and put in front of production, investigation, and assistant agents.
 
-These are templates, not contracts. Every safety team's data model is different. Every platform's entity hierarchy is different. The signals that actually drive detection live in different stores owned by different teams. Rather than force a common schema across organizations, the templates agree on the *shape* — how entities declare their edges, how signals declare their bindings, and how keys round-trip between the two — so an agent trained to read one fork of the template can read every fork.
+**These are templates, not contracts. Every safety team's data model is different. Every platform's entity hierarchy is different. The signals that actually drive detection live in different stores owned by different teams. Rather than force a common schema across organizations, the templates agree on the *shape* — how entities declare their edges, how signals declare their bindings, and how keys round-trip between the two — so an agent trained to read one fork of the template can read every fork.**
 
 This work is part of the broader [ROOST](https://roost.tools) community effort to build open infrastructure for online safety. A longer write-up of the motivation lives in the [Agentic Safety blog post](https://roost.tools/blog). This README is the operational view.
 

@@ -210,7 +210,7 @@ act:
       target:           { platform: "{trigger.platform}", platform_id: "{content.platform_id}" }
       severity:         "{decide.severity}"
       reason_text:      "{rule_id}: spam={content.classifier_scores.spam}, rep={author.reputation}, conf={score.final_confidence}"
-      evidence_refs:    [{ platform: "{trigger.platform}", platform_id: "{content.platform_id}" }]
+      evidence_refs:    [{ target_kind: content, target: { platform: "{trigger.platform}", platform_id: "{content.platform_id}" } }]
       appeal_state:     appealable
   post_action:
     sample_for_qa:      "random() < limits.sample_for_human_qa"
