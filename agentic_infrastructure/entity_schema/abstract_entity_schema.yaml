@@ -1,0 +1,268 @@
+# Abstract Entity Schema — ROOST Template (example)
+#
+# A minimal starting-point entity model for agentic T&S workflows.
+# Fork this file for your platform. Delete entities you do not have,
+# add ones you do, and keep the `edges:` and `signals:` blocks so
+# agents that read the template can still plan traversals.
+#
+# This file is READ by investigation, production, and assistant
+# agents. Keep it small, typed, and explicit. Long platform-specific
+# descriptions belong in comments on your fork, not here.
+#
+# Companion files:
+#   signals.yaml             (same dir) signals that attach to entities
+#   ../playbooks/            per-harm investigation + production playbooks
+#   ../harm_taxonomy.yaml    harm categories + severity scale
+#
+# Last updated: 2026-04-17
+
+meta:
+  template_version: 0.1
+  purpose: agent-navigable entity template for T&S investigations
+
+companion_files:
+  signals: signals.yaml
+  playbooks: ../playbooks/
+  harm_taxonomy: ../harm_taxonomy.yaml
+
+# ============================================================
+# KEY SHAPES (referenced below)
+# ============================================================
+key_shapes:
+  platform_ref:
+    platform: string
+    platform_id: string
+  polymorphic_ref:
+    target_kind: "enum:target_kind"
+    target: platform_ref
+
+# ============================================================
+# ENTITIES
+# ============================================================
+entities:
+
+  Actor:
+    description: A principal (user, bot, org) that acts on the platform.
+    id: platform_ref
+    fields:
+      platform_id:   { type: string, required: true }
+      display_name:  { type: string }
+      handle:        { type: string }
+      actor_type:    { type: "enum:actor_type" }
+      created_at:    { type: datetime, required: true }
+      is_verified:   { type: bool }
+    edges:
+      - { name: authored_content,  target: Content,            via: Content.author_actor,    cardinality: many }
+      - { name: memberships,       target: Membership,         via: Membership.actor,        cardinality: many }
+      - { name: decisions_against, target: ModerationDecision, via: ModerationDecision.target, cardinality: many, when: "target_kind=actor" }
+    signals:
+      - reputation
+      - trust_tier
+      - device_fingerprints
+      - session_anomaly_score
+      - cluster_memberships
+
+  Space:
+    description: A bounded container — server, subreddit, channel, post, playlist.
+    id: platform_ref
+    fields:
+      platform_id:   { type: string, required: true }
+      kind:          { type: "enum:space_kind", required: true }
+      display_name:  { type: string }
+      owner_actor:   { type: platform_ref }
+      parent_space:  { type: platform_ref }
+      visibility:    { type: "enum:visibility" }
+    edges:
+      - { name: owner,         target: Actor,      via: Space.owner_actor,    cardinality: one }
+      - { name: parent,        target: Space,      via: Space.parent_space,   cardinality: one }
+      - { name: child_content, target: Content,    via: Content.parent_space, cardinality: many }
+      - { name: members,       target: Membership, via: Membership.space,     cardinality: many }
+    signals:
+      - risk_score
+      - recent_moderation_rate
+
+  Content:
+    description: A unit of user-generated material — post, comment, message, reaction, video.
+    id: platform_ref
+    fields:
+      platform_id:    { type: string, required: true }
+      kind:           { type: "enum:content_kind", required: true }
+      author_actor:   { type: platform_ref, required: true }
+      parent_space:   { type: platform_ref, required: true }
+      parent_content: { type: platform_ref }
+      body_text:      { type: string }
+      created_at:     { type: datetime, required: true }
+      deleted_at:     { type: datetime }
+    edges:
+      - { name: author,    target: Actor,              via: Content.author_actor,     cardinality: one }
+      - { name: space,     target: Space,              via: Content.parent_space,     cardinality: one }
+      - { name: parent,    target: Content,            via: Content.parent_content,   cardinality: one }
+      - { name: replies,   target: Content,            via: Content.parent_content,   cardinality: many, inverse: true }
+      - { name: decisions, target: ModerationDecision, via: ModerationDecision.target, cardinality: many, when: "target_kind=content" }
+    signals:
+      - harm_labels
+      - similarity_hash
+      - near_duplicate_cluster
+      - classifier_scores
+
+  Membership:
+    description: An Actor's relationship to a Space (joined, role, banned, paid).
+    id: "composite: {platform, actor_id, space_id, kind}"
+    fields:
+      actor:     { type: platform_ref, required: true }
+      space:     { type: platform_ref, required: true }
+      kind:      { type: "enum:membership_kind", required: true }
+      state:     { type: "enum:membership_state" }
+      joined_at: { type: datetime }
+    edges:
+      - { name: actor, target: Actor, via: Membership.actor, cardinality: one }
+      - { name: space, target: Space, via: Membership.space, cardinality: one }
+
+  Cluster:
+    description: >
+      A grouping of Actors and/or Content produced by a detector.
+      Entity (not signal) because it has an ID, lifecycle, and is
+      referenced across Cases.
+    id: platform_ref
+    fields:
+      platform_id:       { type: string, required: true }
+      kind:              { type: "enum:cluster_kind", required: true }
+      algorithm:         { type: string }
+      algorithm_version: { type: string }
+      label:             { type: string }
+      member_count:      { type: int }
+      members:           { type: "list<polymorphic_ref>" }
+      created_at:        { type: datetime, required: true }
+    edges:
+      - { name: member_actors,  target: Actor,   via: Cluster.members,      cardinality: many, when: "target_kind=actor" }
+      - { name: member_content, target: Content, via: Cluster.members,      cardinality: many, when: "target_kind=content" }
+      - { name: cases,          target: Case,    via: Case.related_clusters, cardinality: many, inverse: true }
+    signals:
+      - coordination_score
+      - confidence
+
+  ModerationDecision:
+    description: A concrete action taken against an Actor, Content, Space, or Cluster.
+    id: platform_ref
+    fields:
+      platform_id:      { type: string, required: true }
+      decided_at:       { type: datetime, required: true }
+      decided_by_actor: { type: platform_ref }
+      source:           { type: "enum:decision_source", required: true }
+      action:           { type: "enum:decision_action", required: true }
+      target_kind:      { type: "enum:target_kind", required: true }
+      target:           { type: platform_ref, required: true }
+      severity:         { type: "enum:severity" }
+      reason_text:      { type: string }
+      evidence_refs:    { type: "list<polymorphic_ref>" }
+      appeal_state:     { type: "enum:appeal_state" }
+    edges:
+      - { name: decider,           target: Actor,   via: ModerationDecision.decided_by_actor, cardinality: one }
+      - { name: evidence_content,  target: Content, via: ModerationDecision.evidence_refs,    cardinality: many, when: "target_kind=content" }
+      - { name: evidence_actors,   target: Actor,   via: ModerationDecision.evidence_refs,    cardinality: many, when: "target_kind=actor" }
+      - { name: evidence_clusters, target: Cluster, via: ModerationDecision.evidence_refs,    cardinality: many, when: "target_kind=cluster" }
+
+  Report:
+    description: A user- or system-filed flag. May produce zero or more ModerationDecisions.
+    id: platform_ref
+    fields:
+      platform_id:    { type: string, required: true }
+      filed_at:       { type: datetime, required: true }
+      filed_by_actor: { type: platform_ref }
+      target_kind:    { type: "enum:target_kind", required: true }
+      target:         { type: platform_ref, required: true }
+      category:       { type: "enum:harm_category" }
+      state:          { type: "enum:report_state" }
+    edges:
+      - { name: filer, target: Actor, via: Report.filed_by_actor, cardinality: one }
+
+  Case:
+    description: An investigation envelope grouping reports, evidence, clusters, and decisions.
+    id: platform_ref
+    fields:
+      platform_id:       { type: string, required: true }
+      opened_at:         { type: datetime, required: true }
+      opened_by_actor:   { type: platform_ref }
+      state:             { type: "enum:case_state", required: true }
+      summary:           { type: string }
+      related_reports:   { type: "list<platform_ref>" }
+      related_clusters:  { type: "list<platform_ref>" }
+      evidence_refs:     { type: "list<polymorphic_ref>" }
+      decisions:         { type: "list<platform_ref>" }
+      assigned_reviewer: { type: platform_ref }
+    edges:
+      - { name: reports,   target: Report,             via: Case.related_reports,   cardinality: many }
+      - { name: clusters,  target: Cluster,            via: Case.related_clusters,  cardinality: many }
+      - { name: decisions, target: ModerationDecision, via: Case.decisions,         cardinality: many }
+      - { name: reviewer,  target: Actor,              via: Case.assigned_reviewer, cardinality: one }
+
+  Event:
+    description: Cross-cutting delta over any entity. Feeds the rules engine and audit log.
+    id: "composite: {event_id}"
+    fields:
+      event_id:     { type: string, required: true }
+      timestamp:    { type: datetime, required: true }
+      subject_kind: { type: "enum:subject_kind", required: true }
+      subject:      { type: platform_ref, required: true }
+      verb:         { type: "enum:event_verb", required: true }
+      prior_state:  { type: any }
+      new_state:    { type: any }
+
+# ============================================================
+# ENUMS (minimal — extend on fork)
+# ============================================================
+enums:
+  actor_type:       [human, bot, app, organization, system]
+  space_kind:       [server, channel, thread, post, direct_message, actor_feed]
+  content_kind:     [post, comment, reply, message, reaction, repost, video, caption, live_chat]
+  membership_kind:  [space_member, paid_member, moderator, owner]
+  membership_state: [active, pending, banned, left]
+  visibility:       [public, unlisted, private, paid_only]
+  cluster_kind:     [actor_cohort, content_duplicates, mixed]
+  decision_source:  [human_moderator, classifier, automod_rule, user_report, rights_claim]
+  decision_action:
+    - content_remove
+    - content_hide
+    - content_label_attach
+    - content_demote
+    - ban_from_space
+    - timeout
+    - account_suspend
+    - cluster_flag
+  severity:         [info, low, medium, high, critical]
+  appeal_state:     [none, appealable, appeal_filed, upheld, overturned]
+  target_kind:      [actor, content, space, cluster, membership]
+  report_state:     [open, triaged, actioned, dismissed, closed]
+  case_state:       [open, under_review, resolved, closed]
+  subject_kind:     [actor, content, space, membership, cluster, case, moderation_decision]
+  event_verb:       [created, updated, deleted, posted, joined, left, reacted, moderated, reported]
+  harm_category:    "../harm_taxonomy.yaml"
+
+# ============================================================
+# AGENT CONTRACT (read by agents before planning)
+# ============================================================
+agent_contract:
+  signal_binding: |
+    Each signal listed under an entity's `signals:` block is defined
+    in signals.yaml with the same name. Signals attach to the entity
+    by platform_ref. When a signal value contains a platform_ref
+    (e.g., cluster_memberships), the signal definition names the
+    target entity via `returns_entity_ref:` — follow it to traverse.
+  traversal: |
+    Plan walks by reading `edges:` on each entity. An edge names a
+    direction, a target entity, the field that links them, and a
+    cardinality. Polymorphic edges are annotated `when: target_kind=X`.
+  missing_fields: |
+    Adapters set fields to null when a platform does not expose them
+    and record the absence in the emitting Event's source_fidelity.
+
+# ============================================================
+# HOW TO FORK
+# ============================================================
+fork_instructions: |
+  1. Rename entities to match your platform if useful.
+  2. Delete entities and fields you do not have.
+  3. Add entities specific to your platform (e.g., Transaction).
+  4. Keep every entity's `edges:` and `signals:` blocks populated.
+  5. Bind each signal slot in signals.yaml to an actual scorer.
+  6. Extend enums additively; removing values is a breaking change.

@@ -1,0 +1,165 @@
+# Signals — ROOST Template (example)
+#
+# Each signal below is a slot referenced by an entity in the
+# companion abstract_entity_schema.yaml. This file is a STUB —
+# fork it, delete slots you do not use, and bind the remaining
+# slots to your actual scorers, stores, and pipelines.
+#
+# Binding contract:
+#   - Signals attach to entities by platform_ref (same key shape
+#     as the entity schema).
+#   - A signal value that is itself a platform_ref names the target
+#     entity via `returns_entity_ref:` so agents can round-trip.
+#   - Agents should respect `freshness:` before relying on a value;
+#     stale signals must not be treated as authoritative.
+#
+# Last updated: 2026-04-17
+
+meta:
+  template_version: 0.1
+  companion: abstract_entity_schema.yaml
+
+# ============================================================
+# ACTOR SIGNALS
+# ============================================================
+
+reputation:
+  attaches_to: Actor
+  type: float
+  range: [0.0, 1.0]
+  cardinality: one_per_entity
+  freshness: daily
+  source: "<your trust scorer>"
+  semantics: |
+    Rolling 90-day behavior score. Higher = safer. Combines prior
+    moderation hits, account age, and engagement quality.
+
+trust_tier:
+  attaches_to: Actor
+  type: enum
+  values: [untrusted, new, established, trusted, partner]
+  cardinality: one_per_entity
+  freshness: daily
+  source: "<your trust service>"
+  semantics: "Coarse trust bucket. 'new' = account_age < 7 days."
+
+device_fingerprints:
+  attaches_to: Actor
+  type: "list<dict>"
+  item_shape: { fingerprint_hash: string, last_seen: datetime }
+  cardinality: many_per_entity
+  freshness: realtime
+  source: "<your device graph>"
+  semantics: |
+    Stable hashes of browser/device environments. Two Actors sharing a
+    fingerprint are evidence of multi-account operation.
+
+session_anomaly_score:
+  attaches_to: Actor
+  type: float
+  range: [0.0, 1.0]
+  cardinality: one_per_entity
+  freshness: realtime
+  source: "<your session risk model>"
+  semantics: "Login-pattern anomaly — geo jumps, velocity, device mismatch."
+
+cluster_memberships:
+  attaches_to: Actor
+  type: "list<dict>"
+  item_shape: { cluster_id: platform_ref, confidence: float }
+  cardinality: many_per_entity
+  freshness: hourly
+  source: "<your clustering pipeline>"
+  returns_entity_ref: Cluster
+  semantics: |
+    Clusters this Actor belongs to. Follow cluster_id into the Cluster
+    entity for member lists, coordination_score, and related cases.
+
+# ============================================================
+# CONTENT SIGNALS
+# ============================================================
+
+harm_labels:
+  attaches_to: Content
+  type: "list<dict>"
+  item_shape: { category: string, severity: string, confidence: float }
+  cardinality: many_per_entity
+  freshness: realtime
+  source: "<your classifier stack>"
+  semantics: |
+    Classifier outputs. `category` is a value from harm_taxonomy.yaml.
+    Multiple labels may attach; filter by confidence per playbook.
+
+similarity_hash:
+  attaches_to: Content
+  type: string
+  cardinality: one_per_entity
+  freshness: on_create
+  source: "<your hashing pipeline>"
+  semantics: "Perceptual / text hash for near-duplicate lookup."
+
+near_duplicate_cluster:
+  attaches_to: Content
+  type: platform_ref
+  cardinality: one_per_entity
+  freshness: hourly
+  source: "<your dedup pipeline>"
+  returns_entity_ref: Cluster
+  semantics: "Cluster this Content is a near-duplicate of, if any."
+
+classifier_scores:
+  attaches_to: Content
+  type: "dict<string, float>"
+  cardinality: one_per_entity
+  freshness: realtime
+  source: "<your model suite>"
+  semantics: |
+    Map of model_name → score. e.g., {spam: 0.92, toxicity: 0.31}.
+    Playbooks declare which models are authoritative for which actions.
+
+# ============================================================
+# SPACE SIGNALS
+# ============================================================
+
+risk_score:
+  attaches_to: Space
+  type: float
+  range: [0.0, 1.0]
+  cardinality: one_per_entity
+  freshness: daily
+  source: "<your space risk model>"
+  semantics: |
+    Aggregate Space risk — recent moderation rate, member reputation
+    distribution, complaint density.
+
+recent_moderation_rate:
+  attaches_to: Space
+  type: float
+  cardinality: one_per_entity
+  freshness: hourly
+  source: "derived from ModerationDecision stream"
+  semantics: "Moderation actions per 1000 Content items in the last 24h."
+
+# ============================================================
+# CLUSTER SIGNALS
+# ============================================================
+
+coordination_score:
+  attaches_to: Cluster
+  type: float
+  range: [0.0, 1.0]
+  cardinality: one_per_entity
+  freshness: hourly
+  source: "<your coordination detector>"
+  semantics: |
+    How tightly coordinated the cluster appears. Combines temporal
+    burst patterns, shared fingerprints, and content similarity.
+
+confidence:
+  attaches_to: Cluster
+  type: float
+  range: [0.0, 1.0]
+  cardinality: one_per_entity
+  freshness: hourly
+  source: "<your clustering pipeline>"
+  semantics: "Pipeline confidence that the grouping is real (vs. noise)."

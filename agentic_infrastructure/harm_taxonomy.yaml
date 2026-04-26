@@ -1,0 +1,185 @@
+# Harm Taxonomy — ROOST Template (example)
+#
+# Shared vocabulary for humans and agents. Resolves the
+# `harm_category` enum referenced by entity_schema/abstract_entity_schema.yaml
+# (Report.category, Content.harm_labels) and pairs each category
+# with a default severity, allowed actions, and a routing queue.
+#
+# This is a starter set — small on purpose. Fork it, add the
+# categories your platform actually enforces against, and tune
+# defaults to your policy. Keep `id` values stable across forks
+# so cross-org agents can read the same labels.
+#
+# Companion files:
+#   entity_schema/abstract_entity_schema.yaml   entities, enums, edges
+#   entity_schema/signals.yaml                  signals (incl. harm_labels)
+#   playbooks/                                  per-harm investigation playbooks
+#
+# Last updated: 2026-04-24
+
+meta:
+  template_version: 0.1
+  companion: entity_schema/abstract_entity_schema.yaml
+
+# ============================================================
+# SEVERITY SCALE
+# Mirrors enum:severity in abstract_entity_schema.yaml.
+# ============================================================
+severity_scale:
+  info:     "Observed, not violative. Logged for context."
+  low:      "Minor violation. Soft action (label, demote)."
+  medium:   "Clear violation. Remove content or restrict actor."
+  high:     "Serious violation. Suspend actor or ban from space."
+  critical: "Imminent harm or legal risk. Auto-action + escalate."
+
+# ============================================================
+# ROUTING QUEUES
+# Where a Report or agent recommendation is sent.
+# ============================================================
+routing_queues:
+  auto_action:         "High-confidence + low-ambiguity. Production agent may act."
+  needs_review:        "Recommendation only. Human reviewer makes the call."
+  needs_classification: "Pattern doesn't fit a category cleanly. Taxonomy gap."
+
+# ============================================================
+# CATEGORIES
+#
+# Each category:
+#   id:                       value carried by Report.category / harm_labels.category
+#   description:              one sentence
+#   default_severity:         from severity_scale
+#   default_actions:          subset of enum:decision_action
+#   applies_to_target_kinds:  subset of enum:target_kind
+#   default_queue:            from routing_queues
+#   subcategories:            optional, shallow
+#   platform_examples:        concrete examples for the YT and Discord forks
+# ============================================================
+categories:
+
+  spam:
+    description: Bulk unsolicited promotional content, scam links, or repetitive posting.
+    default_severity: low
+    default_actions: [content_remove, content_demote, content_hide]
+    applies_to_target_kinds: [content, actor]
+    default_queue: auto_action
+    platform_examples:
+      youtube: Repeated promotional comments under unrelated videos.
+      discord: Crypto-drop DMs blasted across many guilds.
+
+  coordinated_inauthentic_behavior:
+    description: Multiple accounts acting in concert to manipulate visibility or discourse.
+    default_severity: high
+    default_actions: [cluster_flag, account_suspend, content_remove]
+    applies_to_target_kinds: [cluster, actor, content]
+    default_queue: needs_review
+    subcategories:
+      spam_ring:     "Account cohort posting near-duplicate promotional content."
+      astroturfing:  "Coordinated comments faking organic support or outrage."
+    platform_examples:
+      youtube: Comment ring boosting the same video across sibling comments.
+      discord: Raid accounts joining a guild and posting identical messages.
+
+  harassment:
+    description: Targeted abuse, threats, or pile-ons against a person or group.
+    default_severity: medium
+    default_actions: [content_remove, timeout, ban_from_space]
+    applies_to_target_kinds: [content, actor]
+    default_queue: needs_review
+    subcategories:
+      targeted: "Sustained abuse aimed at a specific individual."
+      bulk:     "Coordinated pile-on by many actors."
+    platform_examples:
+      youtube: Repeated insulting replies on a creator's videos.
+      discord: Members brigading a user across channels in a guild.
+
+  hate_speech:
+    description: Attacks on people based on protected characteristics.
+    default_severity: high
+    default_actions: [content_remove, content_label_attach, account_suspend]
+    applies_to_target_kinds: [content, actor]
+    default_queue: needs_review
+    platform_examples:
+      youtube: Slur-laden comments on a video.
+      discord: Hate symbols in channel messages or server names.
+
+  violent_threats:
+    description: Credible threats of physical violence against people or places.
+    default_severity: critical
+    default_actions: [content_remove, account_suspend]
+    applies_to_target_kinds: [content, actor]
+    default_queue: auto_action
+    platform_examples:
+      youtube: Comment threatening a named individual.
+      discord: DM or channel message threatening a specific location.
+
+  sexual_content:
+    description: Sexual content, with strict subcategory handling for minors.
+    default_severity: high
+    default_actions: [content_remove, content_hide, account_suspend]
+    applies_to_target_kinds: [content, actor]
+    default_queue: needs_review
+    subcategories:
+      adult_nudity:  { default_severity: medium, default_queue: auto_action }
+      csam:          { default_severity: critical, default_queue: auto_action, mandatory_escalation: true }
+    platform_examples:
+      youtube: Explicit thumbnails or comment links.
+      discord: Image attachments in a guild channel or DM.
+
+  self_harm:
+    description: Promotion or graphic depiction of self-harm or suicide.
+    default_severity: high
+    default_actions: [content_hide, content_label_attach]
+    applies_to_target_kinds: [content]
+    default_queue: needs_review
+    platform_examples:
+      youtube: Comments encouraging self-harm under a sensitive video.
+      discord: Messages promoting self-harm in a vulnerable community.
+
+  impersonation:
+    description: Account or content presenting as another real person or entity.
+    default_severity: medium
+    default_actions: [account_suspend, content_remove]
+    applies_to_target_kinds: [actor, content]
+    default_queue: needs_review
+    platform_examples:
+      youtube: Channel posing as a known creator in comments.
+      discord: User mimicking a guild owner's handle and avatar.
+
+  platform_manipulation:
+    description: Gaming engagement or distribution mechanics (views, votes, boosts).
+    default_severity: medium
+    default_actions: [content_demote, cluster_flag, account_suspend]
+    applies_to_target_kinds: [actor, content, cluster]
+    default_queue: needs_review
+    platform_examples:
+      youtube: View or subscription fraud rings.
+      discord: Boost-farming or fake-vote bots in community servers.
+
+  off_platform_harm:
+    description: On-platform contact that escalates harm off-platform (e.g., sextortion, grooming handoff).
+    default_severity: critical
+    default_actions: [account_suspend, ban_from_space]
+    applies_to_target_kinds: [actor, content]
+    default_queue: needs_review
+    platform_examples:
+      youtube: Comment luring a minor to an off-platform chat app.
+      discord: DM moving a target to an external service for extortion.
+
+# ============================================================
+# AGENT CONTRACT
+# ============================================================
+agent_contract:
+  label_binding: |
+    Values used in Report.category and the `category` field of
+    harm_labels (see signals.yaml) MUST be a category id from this
+    file. Subcategory ids are also valid where finer routing helps.
+  severity_binding: |
+    ModerationDecision.severity SHOULD default to the category's
+    default_severity unless evidence justifies escalation/de-escalation.
+  action_binding: |
+    ModerationDecision.action MUST be drawn from the category's
+    default_actions unless a playbook overrides with justification.
+  unknown_patterns: |
+    If a pattern does not fit any category, route to
+    `needs_classification` rather than forcing a label. New
+    categories should be proposed via PR, not invented at runtime.

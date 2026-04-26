@@ -1,0 +1,306 @@
+# Discord T&S Entity Schema — ROOST Template Fork
+#
+# Shape-preserving realization of abstract_entity_schema.yaml for Discord.
+# Each entity names the abstract kind it realizes via `maps_to:`.
+#
+# Scope cuts (deliberate; add on your fork if needed):
+#   - Decorative / profile fields, ephemeral state (presence, typing, voice)
+#   - Developer surface (Team, ApplicationCommand), discovery / widget
+#   - Nested-in-message constructs (Embed, Component, Poll, Reaction)
+#   - Custom media other than Emoji (Sticker, standard packs)
+#   - Role (rarely central to T&S traversals)
+#   - Commerce (SKU, Subscription, Entitlement)
+#   - Client-only / undocumented (Relationship)
+#
+# Docs root: https://discord.com/developers/docs/
+# Last updated: 2026-04-20
+
+meta:
+  platform: discord
+  template_version: 0.4
+  companion: { abstract: abstract_entity_schema.yaml, signals: signals.yaml }
+
+key_shapes:
+  platform_ref: { platform: string, platform_id: string }   # snowflake → platform_id
+
+# ============================================================
+# ENTITIES
+# ============================================================
+entities:
+
+  User:
+    maps_to: Actor
+    description: Individual Discord user account (human or bot).
+    id: platform_ref
+    fields:
+      platform_id:  { type: string, required: true }
+      username:     { type: string, required: true }
+      global_name:  { type: string }
+      actor_type:   { type: "enum:actor_type" }
+      bot:          { type: bool }
+      verified:     { type: bool }                            # email verified
+      mfa_enabled:  { type: bool }
+      public_flags: { type: int }
+      created_at:   { type: datetime }                        # derivable from snowflake
+    edges:
+      - { name: authored_messages, target: Message,     via: Message.author,   cardinality: many }
+      - { name: memberships,       target: GuildMember, via: GuildMember.user, cardinality: many }
+      - { name: bans_against,      target: GuildBan,    via: GuildBan.user,    cardinality: many }
+    signals: [reputation, trust_tier, device_fingerprints, session_anomaly_score, cluster_memberships]
+
+  GuildMember:
+    maps_to: Membership
+    description: A User's membership in a Guild (nickname, roles, timeout state).
+    id: "composite: {platform, guild_id, user_id}"
+    fields:
+      user:                         { type: platform_ref, required: true }
+      guild:                        { type: platform_ref, required: true }
+      nick:                         { type: string }
+      joined_at:                    { type: datetime, required: true }
+      pending:                      { type: bool }            # onboarding incomplete → send blocked
+      communication_disabled_until: { type: datetime }        # timeout expiry
+    edges:
+      - { name: user_ref,  target: User,  via: GuildMember.user,  cardinality: one }
+      - { name: guild_ref, target: Guild, via: GuildMember.guild, cardinality: one }
+
+  Guild:
+    maps_to: Space
+    description: Discord server — top-level community container.
+    id: platform_ref
+    fields:
+      platform_id:             { type: string, required: true }
+      name:                    { type: string, required: true }
+      owner:                   { type: platform_ref, required: true }
+      verification_level:      { type: "enum:verification_level" }
+      explicit_content_filter: { type: "enum:explicit_content_filter" }
+      nsfw_level:              { type: "enum:nsfw_level" }
+      features:                { type: "list<enum:guild_feature>" }
+      member_count:            { type: int }
+    edges:
+      - { name: owner_user,     target: User,               via: Guild.owner,              cardinality: one }
+      - { name: channels,       target: Channel,            via: Channel.guild,            cardinality: many }
+      - { name: members,        target: GuildMember,        via: GuildMember.guild,        cardinality: many }
+      - { name: bans,           target: GuildBan,           via: GuildBan.guild,           cardinality: many }
+      - { name: auto_mod_rules, target: AutoModerationRule, via: AutoModerationRule.guild, cardinality: many }
+      - { name: audit_log,      target: AuditLogEntry,      via: AuditLogEntry.guild,      cardinality: many }
+    signals: [risk_score, recent_moderation_rate]
+
+  Channel:
+    maps_to: Space
+    description: >
+      Text channel, voice channel, category, forum, media channel, or thread
+      within a Guild (or DM). Threads are Channel rows with kind=*_thread.
+    id: platform_ref
+    fields:
+      platform_id:         { type: string, required: true }
+      guild:               { type: platform_ref }             # null for DM / group DM
+      parent:              { type: platform_ref }             # category, forum, or parent channel for threads
+      kind:                { type: "enum:channel_kind", required: true }
+      name:                { type: string }
+      topic:               { type: string }
+      nsfw:                { type: bool }
+      rate_limit_per_user: { type: int }                      # slowmode seconds
+      thread_metadata:     { type: "dict" }                   # {archived, auto_archive_duration, locked, invitable}
+    edges:
+      - { name: guild_ref,    target: Guild,   via: Channel.guild,   cardinality: one }
+      - { name: parent_space, target: Channel, via: Channel.parent,  cardinality: one }
+      - { name: messages,     target: Message, via: Message.channel, cardinality: many }
+      - { name: webhooks,     target: Webhook, via: Webhook.channel, cardinality: many }
+    signals: [risk_score, recent_moderation_rate]
+
+  Message:
+    maps_to: Content
+    description: Text message, reply, or system message in a Channel.
+    id: platform_ref
+    fields:
+      platform_id:        { type: string, required: true }
+      channel:            { type: platform_ref, required: true }
+      guild:              { type: platform_ref }
+      author:             { type: platform_ref, required: true }  # User (virtual for webhook sends)
+      webhook_id:         { type: platform_ref }                   # set iff webhook
+      content:            { type: string }                         # requires MESSAGE_CONTENT intent
+      type:               { type: "enum:message_type" }
+      mention_everyone:   { type: bool }
+      mentions:           { type: "list<platform_ref>" }
+      referenced_message: { type: platform_ref }                   # reply target
+      created_at:         { type: datetime, required: true }
+      edited_at:          { type: datetime }
+      deleted_at:         { type: datetime }
+    edges:
+      - { name: author_user,    target: User,               via: Message.author,             cardinality: one }
+      - { name: author_webhook, target: Webhook,            via: Message.webhook_id,         cardinality: one }  # iff webhook_id set
+      - { name: channel_space,  target: Channel,            via: Message.channel,            cardinality: one }
+      - { name: reply_target,   target: Message,            via: Message.referenced_message, cardinality: one }
+      - { name: attachments,    target: Attachment,         via: Attachment.message,         cardinality: many }
+      - { name: decisions,      target: ModerationDecision, via: ModerationDecision.target,  cardinality: many, when: "target_kind=content" }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
+
+  Attachment:
+    maps_to: Content
+    description: File (image, video, audio, document) attached to a Message.
+    id: platform_ref
+    fields:
+      platform_id:   { type: string, required: true }
+      message:       { type: platform_ref, required: true }
+      filename:      { type: string }
+      content_type:  { type: string }                         # MIME
+      size:          { type: int }
+      url:           { type: string }
+      duration_secs: { type: float }                          # audio only
+    edges:
+      - { name: message_ref, target: Message, via: Attachment.message, cardinality: one }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
+
+  Emoji:
+    maps_to: Content
+    description: Custom guild emoji — arbitrary uploaded image (CSAM vector).
+    id: platform_ref
+    fields:
+      platform_id: { type: string, required: true }
+      guild:       { type: platform_ref }
+      name:        { type: string }
+      creator:     { type: platform_ref }
+      animated:    { type: bool }
+    edges:
+      - { name: guild_ref,   target: Guild, via: Emoji.guild,   cardinality: one }
+      - { name: creator_ref, target: User,  via: Emoji.creator, cardinality: one }
+    signals: [harm_labels, similarity_hash]
+
+  Webhook:
+    maps_to: Actor
+    description: Non-user sender that can post Messages to a Channel.
+    id: platform_ref
+    fields:
+      platform_id:    { type: string, required: true }
+      type:           { type: "enum:webhook_type" }
+      channel:        { type: platform_ref, required: true }
+      creator:        { type: platform_ref }
+      name:           { type: string }
+      application_id: { type: platform_ref }
+    edges:
+      - { name: channel_ref,  target: Channel, via: Webhook.channel, cardinality: one }
+      - { name: creator_user, target: User,    via: Webhook.creator, cardinality: one }
+    signals: [reputation]
+
+  Invite:
+    maps_to: (no abstract counterpart)
+    description: Shareable invite code granting access to a Guild (raid vector).
+    id: "composite: {platform, code}"
+    fields:
+      code:        { type: string, required: true }
+      guild:       { type: platform_ref }
+      channel:     { type: platform_ref }
+      inviter:     { type: platform_ref }
+      target_user: { type: platform_ref }
+      uses:        { type: int }
+      max_uses:    { type: int }                              # 0 = unlimited
+      expires_at:  { type: datetime }
+    edges:
+      - { name: guild_ref,   target: Guild, via: Invite.guild,   cardinality: one }
+      - { name: inviter_ref, target: User,  via: Invite.inviter, cardinality: one }
+
+  AutoModerationRule:
+    maps_to: (no abstract counterpart)
+    description: Guild automod rule — keyword, spam, mention, or profile filter.
+    id: platform_ref
+    fields:
+      platform_id:      { type: string, required: true }
+      guild:            { type: platform_ref, required: true }
+      name:             { type: string }
+      trigger_type:     { type: "enum:automod_trigger_type" }
+      trigger_metadata: { type: "dict" }                      # keywords / regex / presets
+      actions:          { type: "list<dict>" }                # [{type: enum:automod_action_type, metadata}]
+      enabled:          { type: bool }
+      exempt_roles:     { type: "list<platform_ref>" }
+      exempt_channels:  { type: "list<platform_ref>" }
+    edges:
+      - { name: guild_ref, target: Guild, via: AutoModerationRule.guild, cardinality: one }
+
+  GuildBan:
+    maps_to: ModerationDecision
+    description: Guild-level ban of a User (target_kind=actor, action=ban_from_space).
+    id: "composite: {platform, guild_id, user_id}"
+    fields:
+      guild:  { type: platform_ref, required: true }
+      user:   { type: platform_ref, required: true }
+      reason: { type: string }
+    edges:
+      - { name: guild_ref, target: Guild, via: GuildBan.guild, cardinality: one }
+      - { name: user_ref,  target: User,  via: GuildBan.user,  cardinality: one }
+
+  AuditLogEntry:
+    maps_to: Event
+    description: >
+      Guild audit-log entry. Realizes ModerationDecision when action_type is a
+      moderation verb (member_ban_add, member_kick, message_delete, auto_moderation_*).
+    id: platform_ref
+    fields:
+      platform_id: { type: string, required: true }
+      guild:       { type: platform_ref, required: true }
+      target_id:   { type: string }                           # polymorphic; depends on action_type
+      user:        { type: platform_ref }                     # actor performing the action
+      action_type: { type: "enum:audit_log_action" }
+      reason:      { type: string }
+      timestamp:   { type: datetime, required: true }
+    edges:
+      - { name: guild_ref, target: Guild, via: AuditLogEntry.guild, cardinality: one }
+      - { name: actor,     target: User,  via: AuditLogEntry.user,  cardinality: one }
+
+# ============================================================
+# ENUMS (Discord-specific; flow-style where short)
+# ============================================================
+enums:
+  actor_type:              [human, bot, system]
+  # Subset of channel-type enum; values match Discord's wire names lowercased.
+  channel_kind:            [guild_text, dm, guild_voice, group_dm, guild_category, guild_announcement, announcement_thread, public_thread, private_thread, guild_stage_voice, guild_forum, guild_media]
+  # Vocabulary for polymorphic refs; values name this fork's Content entities.
+  content_kind:            [message, attachment, emoji]
+  # Subset of ~35 message types; kept: moderation-relevant.
+  message_type:            [default, user_join, reply, auto_moderation_action, thread_created, chat_input_command, context_menu_command]
+  verification_level:      [none, low, medium, high, very_high]
+  explicit_content_filter: [disabled, members_without_roles, all_members]
+  nsfw_level:              [default, explicit, safe, age_restricted]
+  # Subset of ~50 GuildFeature values; kept: T&S-signal-bearing.
+  guild_feature:           [COMMUNITY, VERIFIED, PARTNERED, DISCOVERABLE, AUTO_MODERATION, INVITES_DISABLED, RAID_ALERTS_DISABLED, MEMBER_VERIFICATION_GATE_ENABLED]
+  webhook_type:            [incoming, channel_follower, application]
+  automod_trigger_type:    [keyword, spam, keyword_preset, mention_spam, member_profile]  # value 2 (harmful_link) retired
+  automod_action_type:     [block_message, send_alert_message, timeout, block_member_interaction]
+  # Subset of ~60 audit-log action types; kept: T&S-critical moderation actions.
+  audit_log_action:
+    [guild_update, channel_update, member_kick, member_prune, member_ban_add, member_ban_remove,
+     member_role_update, role_update, message_delete, message_bulk_delete,
+     webhook_create, webhook_update, webhook_delete,
+     auto_moderation_rule_create, auto_moderation_rule_update, auto_moderation_rule_delete,
+     auto_moderation_block_message, auto_moderation_flag_to_channel,
+     auto_moderation_user_communication_disabled, auto_moderation_quarantine_user]
+
+# ============================================================
+# AGENT CONTRACT (Discord-specific notes)
+# ============================================================
+agent_contract:
+  privileged_intents: |
+    Message.content requires the MESSAGE_CONTENT privileged intent
+    (approval-gated). Without it, Message fields populate but content is null.
+  audit_log_is_event_feed: |
+    AuditLogEntry is the canonical Event / ModerationDecision stream for a
+    Guild. MESSAGE_DELETE is logged; MESSAGE_CREATE is NOT — use the gateway
+    MESSAGE_CREATE dispatch for real-time content.
+  webhook_amplification: |
+    Channel-follower webhooks (Webhook.type=channel_follower) repost Messages
+    across Guilds — a cross-Guild amplification vector worth tracking.
+  fork_polymorphism: |
+    Where the abstract uses `kind:` to discriminate within one entity, this
+    fork splits by entity name:
+      Content   → Message, Attachment, Emoji
+      Space     → Guild, Channel (Channel further discriminates via `kind:`)
+      Actor     → User, Webhook
+      ModDec.   → GuildBan; AuditLogEntry rows with moderation action_type
+  coordinated_abuse_traversal: |
+    To walk a coordinated ring from a flagged Message:
+      1. Message → author (User)
+      2. User.cluster_memberships (signal) → Cluster (abstract)
+      3. Cluster.member_actors → other Users in the ring
+      4. Each User.authored_messages → additional ring content
+      5. ModerationDecision with target_kind=cluster for ring-level action
+    Cluster itself lives in the abstract; this fork provides the entry
+    signal and member-fanout traversal.

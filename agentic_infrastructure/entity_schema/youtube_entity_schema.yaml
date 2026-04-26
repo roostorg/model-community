@@ -1,0 +1,320 @@
+# YouTube T&S Entity Schema — ROOST Template Fork
+#
+# Shape-preserving realization of abstract_entity_schema.yaml for YouTube.
+# Each entity names the abstract kind it realizes via `maps_to:`.
+#
+# Scope cuts (deliberate; add on your fork if needed):
+#   - Decorative embedded resources (Thumbnail, Watermark)
+#   - Legacy / minor-T&S (GuideCategory, I18nRegion, I18nLanguage,
+#     ChannelSection, MembershipsLevel → folded into Membership)
+#   - Ingestion detail (LiveStream — RTMP endpoints, health)
+#   - API-response wrappers (CommentThread → via Comment.parent_comment;
+#     Subscription → edge, not entity; SuperChatEvent → LiveChatMessage type)
+#   - Aggregate-only reports (ReportType); taxonomy lookups
+#     (VideoCategory, VideoAbuseReportReason → enums only)
+#   - Push metadata (PubSubHubbubNotification)
+#   - Owner-auth-only sub-objects (fileDetails, processingDetails,
+#     suggestions), deprecated fields (dislikeCount, recordingDetails.location)
+#   - Activity (channel-scoped event feed; use abstract Event directly)
+#   - Caption (niche T&S; add back for slur-mismatch / language-hiding cases)
+#   - Content ID Asset / Policy entities (partner-only; referenced from Claim
+#     as opaque platform_refs so agents can resolve if access is granted)
+#
+# Docs root: https://developers.google.com/youtube/
+# Last updated: 2026-04-20
+
+meta:
+  platform: youtube
+  template_version: 0.4
+  companion: { abstract: abstract_entity_schema.yaml, signals: signals.yaml }
+  apis:
+    data_v3:      https://developers.google.com/youtube/v3/docs
+    live:         https://developers.google.com/youtube/v3/live/docs
+    content_id:   https://developers.google.com/youtube/partner
+    pubsubhubbub: https://developers.google.com/youtube/v3/guides/push_notifications
+
+key_shapes:
+  platform_ref: { platform: string, platform_id: string }
+
+# ============================================================
+# ENTITIES
+# ============================================================
+entities:
+
+  Channel:
+    maps_to: Actor
+    description: Top-level YouTube account (user, brand, or organization).
+    id: platform_ref
+    fields:
+      platform_id:                 { type: string, required: true }  # "UCxxx…"
+      title:                       { type: string }
+      custom_url:                  { type: string }
+      actor_type:                  { type: "enum:actor_type" }
+      country:                     { type: string }                  # ISO 3166-1
+      published_at:                { type: datetime, required: true }
+      is_linked:                   { type: bool }                    # linked Google Account
+      made_for_kids:               { type: bool }
+      self_declared_made_for_kids: { type: bool }
+      subscriber_count:            { type: int }
+      video_count:                 { type: int }
+    edges:
+      - { name: uploaded_videos,   target: Video,              via: Video.channel,              cardinality: many }
+      - { name: playlists,         target: Playlist,           via: Playlist.channel,           cardinality: many }
+      - { name: memberships,       target: Membership,         via: Membership.creator_channel, cardinality: many }
+      - { name: live_broadcasts,   target: LiveBroadcast,      via: LiveBroadcast.channel,      cardinality: many }
+      - { name: authored_comments, target: Comment,            via: Comment.author_channel,     cardinality: many }
+      - { name: decisions_against, target: ModerationDecision, via: ModerationDecision.target,  cardinality: many, when: "target_kind=actor" }
+    signals: [reputation, trust_tier, device_fingerprints, session_anomaly_score, cluster_memberships]
+
+  Membership:
+    maps_to: Membership
+    description: A member's paid membership to a creator's Channel. Owner-auth only.
+    id: "composite: {platform, creator_channel_id, member_channel_id}"
+    fields:
+      creator_channel:       { type: platform_ref, required: true }
+      member_channel:        { type: platform_ref, required: true }
+      level_display_name:    { type: string }
+      member_since:          { type: datetime }
+      total_duration_months: { type: int }
+    edges:
+      - { name: creator, target: Channel, via: Membership.creator_channel, cardinality: one }
+      - { name: member,  target: Channel, via: Membership.member_channel,  cardinality: one }
+
+  Video:
+    maps_to: Content
+    description: Uploaded VOD, scheduled / live / completed broadcast, or Short.
+    id: platform_ref
+    fields:
+      platform_id:                 { type: string, required: true }
+      channel:                     { type: platform_ref, required: true }
+      title:                       { type: string }
+      description:                 { type: string }
+      tags:                        { type: "list<string>" }
+      category_id:                 { type: string }
+      default_language:            { type: string }
+      published_at:                { type: datetime, required: true }
+      duration:                    { type: string }                  # ISO 8601
+      content_rating:              { type: "dict<string, string>" }  # {mpaaRating: PG-13, …}
+      region_restriction_blocked:  { type: "list<string>" }
+      upload_status:               { type: "enum:upload_status" }
+      rejection_reason:            { type: "enum:video_rejection_reason" }
+      privacy_status:              { type: "enum:privacy_status" }
+      made_for_kids:               { type: bool }
+      self_declared_made_for_kids: { type: bool }
+      live_broadcast_content:      { type: "enum:live_broadcast_content" }
+      view_count:                  { type: int }
+      topic_ids:                   { type: "list<string>" }
+      has_paid_product_placement:  { type: bool }
+    edges:
+      - { name: channel_ref,    target: Channel,            via: Video.channel,             cardinality: one }
+      - { name: comments,       target: Comment,            via: Comment.video,             cardinality: many }
+      - { name: claims,         target: Claim,              via: Claim.video,               cardinality: many }
+      - { name: live_broadcast, target: LiveBroadcast,      via: LiveBroadcast.video,       cardinality: one }
+      - { name: decisions,      target: ModerationDecision, via: ModerationDecision.target, cardinality: many, when: "target_kind=content" }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
+
+  Playlist:
+    maps_to: Space
+    description: Ordered list of videos curated by a Channel.
+    id: platform_ref
+    fields:
+      platform_id:    { type: string, required: true }
+      channel:        { type: platform_ref, required: true }
+      title:          { type: string }
+      privacy_status: { type: "enum:privacy_status" }
+      item_count:     { type: int }
+      items:          { type: "list<dict>" }                  # [{video_id, position, video_owner_channel_id, start_at, end_at}]
+    edges:
+      - { name: owner_channel, target: Channel, via: Playlist.channel, cardinality: one }
+      - { name: videos,        target: Video,   via: Playlist.items,   cardinality: many }
+    signals: [risk_score]
+
+  Comment:
+    maps_to: Content
+    description: >
+      Top-level or reply comment on a Video or Channel. CommentThread is not a
+      separate entity in this fork — a thread is the subgraph rooted at a
+      Comment with parent_comment=null.
+    id: platform_ref
+    fields:
+      platform_id:       { type: string, required: true }
+      video:             { type: platform_ref }
+      channel:           { type: platform_ref }                # set for channel-level comments
+      author_channel:    { type: platform_ref }                # null when author account deleted
+      parent_comment:    { type: platform_ref }                # set iff reply
+      text_original:     { type: string }
+      like_count:        { type: int }
+      moderation_status: { type: "enum:comment_moderation_status" }  # owner-auth only
+      published_at:      { type: datetime, required: true }
+      updated_at:        { type: datetime }
+    edges:
+      - { name: video_ref, target: Video,   via: Comment.video,          cardinality: one }
+      - { name: author,    target: Channel, via: Comment.author_channel, cardinality: one }
+      - { name: parent,    target: Comment, via: Comment.parent_comment, cardinality: one }
+      - { name: replies,   target: Comment, via: Comment.parent_comment, cardinality: many, inverse: true }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
+
+  LiveBroadcast:
+    maps_to: Space
+    description: Live-stream envelope (scheduling, status, chat container).
+    id: platform_ref
+    fields:
+      platform_id:              { type: string, required: true }
+      channel:                  { type: platform_ref, required: true }
+      video:                    { type: platform_ref }
+      title:                    { type: string }
+      scheduled_start_time:     { type: datetime }
+      actual_start_time:        { type: datetime }
+      life_cycle_status:        { type: "enum:live_broadcast_life_cycle" }
+      privacy_status:           { type: "enum:privacy_status" }
+      made_for_kids:            { type: bool }
+      monitor_stream_delay_ms:  { type: int }                  # operator-set safety delay
+      live_chat_id:             { type: string }               # join key for LiveChatMessage
+      concurrent_viewers:       { type: int }
+    edges:
+      - { name: channel_ref,   target: Channel,         via: LiveBroadcast.channel,        cardinality: one }
+      - { name: video_ref,     target: Video,           via: LiveBroadcast.video,          cardinality: one }
+      - { name: chat_messages, target: LiveChatMessage, via: LiveChatMessage.live_chat_id, cardinality: many }
+      - { name: chat_bans,     target: LiveChatBan,     via: LiveChatBan.live_chat_id,     cardinality: many }
+    signals: [risk_score, recent_moderation_rate]
+
+  LiveChatMessage:
+    maps_to: Content
+    description: >
+      Event in a live chat — text, Super Chat, gift, membership, or system.
+      Folds SuperChatEvent into super_chat_* fields on type=superChatEvent.
+    id: platform_ref
+    fields:
+      platform_id:              { type: string, required: true }
+      live_chat_id:             { type: string, required: true }
+      author_channel:           { type: platform_ref }
+      type:                     { type: "enum:live_chat_message_type" }
+      message_text:             { type: string }             # null on tombstone / chat-ended
+      published_at:             { type: datetime, required: true }
+      # Per-type detail (populated only when type matches):
+      deleted_message_id:       { type: string }             # messageDeletedEvent
+      banned_user_channel:      { type: platform_ref }       # userBannedEvent
+      super_chat_amount_micros: { type: int }                # superChatEvent / superStickerEvent
+      super_chat_currency:      { type: string }             # ISO 4217
+      super_chat_tier:          { type: int }                # 1..5
+      gift_memberships_count:   { type: int }                # membershipGiftingEvent
+      # Author flags inlined from authorDetails:
+      author_is_verified:       { type: bool }
+      author_is_chat_owner:     { type: bool }
+      author_is_chat_moderator: { type: bool }
+      author_is_chat_sponsor:   { type: bool }
+    edges:
+      - { name: broadcast, target: LiveBroadcast, via: LiveChatMessage.live_chat_id,   cardinality: one }
+      - { name: author,    target: Channel,       via: LiveChatMessage.author_channel, cardinality: one }
+    signals: [harm_labels, similarity_hash, near_duplicate_cluster, classifier_scores]
+
+  LiveChatBan:
+    maps_to: ModerationDecision
+    description: Ban of a viewer from a live chat (target_kind=actor, action=ban_from_space).
+    id: platform_ref
+    fields:
+      platform_id:          { type: string, required: true }
+      live_chat_id:         { type: string, required: true }
+      banned_channel:       { type: platform_ref, required: true }
+      type:                 { type: "enum:live_chat_ban_type" }
+      ban_duration_seconds: { type: int }                         # set when type=temporary
+    edges:
+      - { name: broadcast,   target: LiveBroadcast, via: LiveChatBan.live_chat_id,   cardinality: one }
+      - { name: banned_user, target: Channel,       via: LiveChatBan.banned_channel, cardinality: one }
+
+  Claim:
+    maps_to: ModerationDecision
+    description: >
+      Content ID match against a user Video (partner-only API). The claim's
+      action (block / monetize / track) is dictated by the associated Policy;
+      asset and policy are kept as opaque platform_refs so agents with partner
+      access can resolve them. Asset and Policy entities are not modeled here.
+    id: platform_ref
+    fields:
+      platform_id:  { type: string, required: true }
+      video:        { type: platform_ref, required: true }
+      asset:        { type: platform_ref, required: true }
+      policy:       { type: platform_ref }
+      status:       { type: "enum:claim_status" }
+      match_type:   { type: "enum:claim_match_type" }
+      time_created: { type: datetime }
+    edges:
+      - { name: video_ref, target: Video, via: Claim.video, cardinality: one }
+
+# ============================================================
+# ENUMS (YouTube-specific; flow-style where short)
+# ============================================================
+enums:
+  actor_type:      [human, bot, organization]
+  privacy_status:  [public, unlisted, private]
+  # Vocabulary for polymorphic refs; values name this fork's Content entities.
+  # LiveChatMessage sub-types (superChatEvent etc.) are in live_chat_message_type.
+  content_kind:    [video, comment, live_chat_message]
+  # Channel maps to Actor in this fork, not Space.
+  space_kind:      [playlist, live_broadcast]
+  upload_status:   [deleted, failed, processed, rejected, uploaded]
+  # Why YouTube itself rejected an upload (distinct from user-reported reasons).
+  video_rejection_reason:
+    [claim, copyright, duplicate, inappropriate, legal, length, termsOfUse, trademark, uploaderAccountClosed, uploaderAccountSuspended]
+  video_license:                   [youtube, creativeCommon]
+  live_broadcast_content:          [none, upcoming, live, completed]
+  live_broadcast_life_cycle:       [created, ready, testing, testStarting, liveStarting, live, complete, revoked]
+  # Subset of the full live-chat event enum; kept: T&S-actionable.
+  # Omitted: pollEvent, giftEvent (generic).
+  live_chat_message_type:
+    [textMessageEvent, messageDeletedEvent, userBannedEvent, superChatEvent, superStickerEvent,
+     membershipGiftingEvent, giftMembershipReceivedEvent, newSponsorEvent, memberMilestoneChatEvent,
+     sponsorOnlyModeStartedEvent, sponsorOnlyModeEndedEvent, tombstone, chatEndedEvent]
+  live_chat_ban_type:              [permanent, temporary]
+  # Owner-only; requires youtube.force-ssl OAuth scope.
+  comment_moderation_status:       [published, heldForReview, likelySpam, rejected]
+  # Publicly documented; partner-internal values (disputed, appealed, expired,
+  # duplicate, partiallyMatched, takedown, countered, pending, rejected,
+  # removed, computedInactive) may appear on the wire but are not contract-guaranteed.
+  claim_status:                    [active, inactive]
+  claim_match_type:                [audiovisual, audio, video]
+  # Vocabulary for Policy.rules[].action (Policy not modeled in this fork).
+  policy_action:                   [block, monetize, track]
+  # Categories a user may choose when filing videos.reportAbuse. The API is
+  # write-only — agents cannot enumerate filed reports.
+  video_abuse_report_reason:
+    [violentOrRepulsive, hatefulOrAbusive, harmfulOrDangerousActs, childAbuse, infringesMyRights, promotesTerrorism, spamOrMisleading]
+
+# ============================================================
+# AGENT CONTRACT (YouTube-specific notes)
+# ============================================================
+agent_contract:
+  discovery_surfaces: |
+    YouTube has no WebSocket event API. Discovery is polling (videos.list,
+    activities.list) + PubSubHubbub (upload / update only, 10–30 s latency,
+    never deletes) + LiveChat long-poll (~1 RPS). Plan narrow real-time
+    windows; detect removals by polling and diffing.
+  owner_auth_gates: |
+    Comment.moderation_status, Membership, Video fileDetails / processingDetails,
+    and Content ID (Claim, Asset, Policy) require owner-scoped OAuth
+    (youtube.force-ssl or partner access). Public-read agents see nulls.
+  no_read_abuse_reports: |
+    videos.reportAbuse is write-only — agents cannot enumerate filed user
+    reports via API. Aggregate externally if needed.
+  coppa_audit: |
+    made_for_kids vs self_declared_made_for_kids mismatch is the COPPA audit
+    signal. The pair appears on Channel, Video, and LiveBroadcast.
+  livechat_join_key: |
+    LiveChatMessage and LiveChatBan join to LiveBroadcast via live_chat_id,
+    not broadcast_id. Match LiveBroadcast.live_chat_id to resolve.
+  fork_polymorphism: |
+    Where the abstract uses `kind:` to discriminate within one entity, this
+    fork splits by entity name:
+      Content  → Video, Comment, LiveChatMessage (LiveChatMessage further
+                 discriminates via its own `type:` enum)
+      Space    → Playlist, LiveBroadcast (Channel is Actor)
+      ModDec.  → LiveChatBan, Claim
+  coordinated_abuse_traversal: |
+    To walk a coordinated comment ring from a flagged Comment:
+      1. Comment → author (Channel)
+      2. Channel.cluster_memberships (signal) → Cluster (abstract)
+      3. Cluster.member_actors → other Channels in the ring
+      4. Each Channel.authored_comments → additional ring content
+      5. ModerationDecision with target_kind=cluster for ring-level action
+    Cluster itself lives in the abstract; this fork provides the entry
+    signal and member-fanout traversal.
