@@ -17,7 +17,7 @@ This repository serves as the home to find resources for the community, includin
 You can browse the current resources directly on GitHub:
 
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to OpenAI's bring your own policy safety reasoning model
-- [cope-b/] (cope-b): Resources and projects related to Zentropi's bring your own policy safety model
+- [cope-b/](cope-b): Resources and projects related to Zentropi's bring your own policy safety model
 - [projects/](projects): Interesting demos that are not RMC-model-specific
 - [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
   - [RMC Guide to Using Open Safety Models](resources/RMC%20Guide%20to%20Using%20Open%20Safety%20Models.md) — an introduction to applying open safety models across the Detection, Investigation, Review, and Enforcement stages of a T&S architecture
@@ -59,8 +59,8 @@ Although there are many open safety models, we hold a specific bar for RMC Partn
 ## RMC Partners
 
 - OpenAI: [gpt-oss-safeguard](https://huggingface.co/collections/openai/gpt-oss-safeguard)
-- Zentropi: [CoPE-B-A4B] (https://huggingface.co/zentropi-ai/cope-b-a4b)
-
+- Zentropi: [CoPE-B-A4B](https://huggingface.co/zentropi-ai/cope-b-a4b)
+  
 RMC Partners receive a variety of benefits, including:
 
 - Promotion of their model (e.g., via demos during Office Hours, support on events)
