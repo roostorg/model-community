@@ -58,6 +58,7 @@ Although there are many open safety models, we hold a specific bar for RMC Partn
 ## RMC Partners
 
 - OpenAI: [gpt-oss-safeguard](https://huggingface.co/collections/openai/gpt-oss-safeguard)
+- Zentropi: [CoPE-B-A4B] (https://huggingface.co/zentropi-ai/cope-b-a4b)
 
 RMC Partners receive a variety of benefits, including:
 
