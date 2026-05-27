@@ -18,7 +18,10 @@ You can browse the current resources directly on GitHub:
 
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to the open-weight safety model from OpenAI, our first RMC partner
 - [projects/](projects): Interesting demos that are not RMC-model-specific
-- [resources/](resources): Everything else
+- [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
+  - [RMC Guide to Using Open Safety Models](resources/RMC%20Guide%20to%20Using%20Open%20Safety%20Models.md) — an introduction to applying open safety models across the Detection, Investigation, Review, and Enforcement stages of a T&S architecture
+  - [policy-packs/](resources/policy-packs) — partner-contributed policy prompt packs, organized by submitter, that can be used directly with policy-following open safety models
+  - Other code snippets and supplementary materials for non-RMC models
 
 ## Join us!
 

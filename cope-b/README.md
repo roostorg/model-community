@@ -1,11 +1,9 @@
-# cope-b
+# CoPE-B-A4B
 
 - [Download CoPE-B-A4B on HuggingFace](https://huggingface.co/zentropi-ai/cope-b-a4b)
-- [Test CoPE-B-A4B (Colab)](https://colab.research.google.com/drive/1UsILj66wDGjVyO-3gT3cKyaslEskO2Vz)
-- [Zentropi Announcement](https://blog.zentropi.ai/observations-on-toxicity/)
-- [Technical Report](https://arxiv.org/abs/2512.18027)
+- [Zentropi Announcement](https://blog.zentropi.ai/meet-cope-b-frontier-quality-content-classification-you-can-self-host/)
 - [Model Card](https://huggingface.co/zentropi-ai/cope-b-a4b)
 
 ### Helpful Resources
 - [Zentropi API Documentation](https://zentropi.ai/api)
-- [Sample Policies](https://zentropi.ai/labelers/)
+- [CoPE-specific Policy Packs](https://zentropi.ai/labelers/)
