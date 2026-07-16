@@ -1,0 +1,93 @@
+# Criteria
+
+## Overview
+
+This policy identifies content containing threats of harm or violent language.
+
+## Definition of Terms
+
+- **Real Individual**: A living person (excludes fictional personas, legendary entities, imaginary beings)
+- **Public Individual**: Real individual with significant social reach or public recognition (government representatives, candidates, media-prominent persons)
+- **Private Individual**: Real individual who is not public
+- **Physical Injury**: Bodily harm inflicted by one individual upon another or themselves (excludes animal-human interactions)
+- **Risk Creation**: Action placing an individual in likely danger of physical injury (e.g., arson of occupied structures, vehicle explosives)
+- **Bodily Harm**: Umbrella term including Physical Injury and Risk Creation
+- **Subject**: Target of bodily harm in a threatening/inciting statement
+- **Actor**: Individual who would carry out the bodily harm
+- **Direct Address**: Content using second-person pronouns (you, your, yours, you're) as if communicating to another party
+- **Threats**: Author uses first-person to state planned participation in future action (e.g., "I will harm them", "let's attack")
+- **Incitement**: Author explicitly directs, motivates, or asserts necessity/moral correctness of another party's future action WITHOUT claiming personal involvement
+- **Conditional Statement**: Statement where one circumstance depends on another (factually, predictively, prescriptively, hypothetically), including uncertainty indicators ("could", "might", "maybe", "perhaps"), hypothetical constructions ("if it were", "what if"), or prerequisite conditions ("before you", "you should find out first before")
+- **Unconditional Statement**: NOT a Conditional Statement
+- **Credible Threat**: Unconditional Threat with multiple concrete details about timing, location, AND methodology of planned physical injury
+
+## Interpretation of Language
+
+- Generic derogatory terms ("monsters", "savages", "predators", "animals", "scum") interpreted as targeting private individual unless context establishes otherwise
+- Unidentified subject (e.g., "I will harm you") interpreted as private individual unless context establishes identity
+- Ambiguous entity type (e.g., "Destroy it with fire!") NOT threatening unless context establishes subject as structure or vehicle
+- This policy focuses on observable content features rather than user intent
+
+## Definition of Label
+
+### (VT) Violence and Threats
+
+#### Includes
+
+- **Direct Address Threat Content**: Content where author unconditionally threatens to physically injure or create danger for an individual, directly addressing the subject (e.g., "I will harm you fatally," "Robert, I will eviscerate you," "You will be disabled after I finish assaulting you")
+
+- **Direct Address Incitement Content (To Subject)**: Content where author unconditionally incites another party to physically injure or create danger for an individual, directly addressing the subject (e.g., "Another party should harm you fatally," "You should be struck," "Robert ought to assault you severely," "It would benefit society if another party punched your face")
+
+- **Direct Address Incitement Content (To Actor)**: Content where author unconditionally incites another party to physically injure or create danger for an individual, directly addressing the actor, including explicit instructions (direct commands using "you" regardless of conditional phrasing, such as "You ought to harm her fatally John," "You must fire the weapon," "William, you are obligated to strike him") or method advice (instructions on harm methods using "you," including advice phrased as "if you want to," such as "Sever his throat Jane!")
+
+- **Unconditional Threat Content Against Private Individuals**: Content where author unconditionally threatens to physically injure or create danger for a private individual (e.g., "We will sexually assault her," "I will murder that person," "Let's harm these individuals fatally")
+
+- **Unconditional Incitement Content Against Private Individuals**: Content where author unconditionally incites another party to physically injure or create danger for a private individual, including explicit direction with motivation or necessity assertion (excludes merely stating someone "should die"), moral justification assertions (claims that killing is "a solution", "not a problem", or morally justified when targeting private individual categories), weapon display threats (implicit threats via weapon display combined with mortality references or armed intimidation), third-person incitement (direct calls for others to act, such as "someone should shoot them" or "until someone shoots these people"), or hope-based direction (hope combined with explicit direction about actions). Examples include "Another party ought to assault her severely," "They should be stabbed," "Burn down his residence," "Carry weapons and let these people know they have only one life," "Hope your pigs are ready to burn where they belong."
+
+- **Credible Threat Content Against Public Individuals**: Content where author unconditionally threatens to physically injure or create danger for a specifically named public individual with complete detail requirements (must include timing, location, AND methodology; partial information is insufficient). Example: "I will harm Kim Kardashian fatally on Tuesday at her residence using an explosive device."
+
+- **Credible Incitement Content Against Public Individuals**: Content where author unconditionally incites another party to physically injure or create danger for a specifically named public individual with complete detail requirements (must include timing, location, AND methodology; partial information is insufficient). Example: "Jim, obtain your firearm and shoot the senator at his address tomorrow evening."
+
+- **Violence Coordination Content**: Content that strategizes, arranges, synchronizes, or mobilizes harmful acts against individuals through terrorist operations (planning or recruiting activities), bias-driven crimes (organizing hate crimes or discriminatory violence), organized criminal violence (gang or criminal organization attacks), or assassination planning (references suggesting coordination or planning, such as "assassins for [person]" in operational context). Requirements: Must show concrete coordination efforts or active recruitment; advocacy alone is insufficient.
+
+- **Imminent Threat Content**: Content where author signals immediate plan to physically attack, including combat instructions (directing second-person subjects to prepare for combat, such as "Raise your fists, we are about to exchange blows") or direct violence promises (explicit promises addressed directly to subject, such as "Your life ends now!"). Excludes self-harm incitement (e.g., "End your own life").
+
+#### Excludes
+
+- **Self-Harm Content**: Content focusing on self-directed harm (rationale: Physical Injury definition focuses on harm by another individual)
+
+- **Conditional Statement Content**: Content containing threats or incitement depending on hypothetical circumstances, prerequisite conditions, or temporal dependencies, including hypothetical constructions (using "if", "would", "could", "might"), prerequisite conditions (requiring prior actions such as "before you", "find out first before"), temporal dependencies (tied to future uncertain events), elaborate scenarios (conditional death scenarios regardless of detail level), or self-directed conditional statements (e.g., "shoot me if X"). Examples: "I would kill this person if it were my son," "You should find out first before you beat him up," "Shoot me if you didn't vote for Trump."
+
+- **Official Action Expression Content**: Content expressing hopes, wishes, or suggestions for law enforcement, military, or government actions, including:
+  - **Law Enforcement Actions**: Any suggestion for police actions, including specific operational suggestions, what suspects "deserve" from police, or specific suggestions for how law enforcement should act (e.g., "deserve to be shot by police," "police should shoot," "APD should hit Home Depot and buy hammers")
+  - **Military Action Hopes**: Hope for military operations (e.g., "Hopefully bomb him into oblivion"), including content without explicitly identified acting party
+  - **Intelligence Operations**: Suggestions for CIA activities, drone operations, or surgical strikes, including suggestions phrased as "should be attempted" (e.g., "CIA should attempt drone strikes," "surgical drone strikes should be attempted")
+  - **Excludes from this exclusion**: Personal participation or civilian incitement
+
+- **Legal Capital Punishment Content**: Content calling for or celebrating death penalty when legal process context is present or implied. Legal context automatically applies with sequential legal processes (any mention of arrest, legal charges, or law enforcement action before execution calls, such as "arrest then execute," "try for treason and hang"), conditional guilt determinations (execution calls conditioned on legal findings, such as "if found guilty, execute," "unless crimes were murder, then execute"), criminal behavior context (execution calls for recognizable criminal offenses such as murder, assault, theft, child rape, groping), government officials as traitors (execution calls for any political party members or elected officials characterized as traitors, as treason inherently involves legal determinations), explicit legal process (trial, conviction, sentencing, court proceedings), legal charge context (specific crimes requiring legal determinations such as murder, treason, war crimes), military legal context (military offenses and execution methods such as desertion, treason, firing squad for military crimes, including content without explicit court-martial reference), international legal context (war crimes, "war criminal" characterization), precise legal phrases ("death penalty", "put to death", "capital punishment"), legal context execution methods (method references like "hanging", "execution", "firing squad" connected to criminal charges, or conditional legal execution based on legal determinations such as "If guilty, hang him," "Execute them for murder"), or enhanced physical punishments (other severe physical punishments when proposed in legal sentencing contexts, such as dismemberment, torture as part of legal sentences)
+
+- **Self-Defense Content**: Content calling for or celebrating violence explicitly described as defense from immediate physical threat, including self-defense scenarios (violence framed as response to immediate attack, such as weapon defense for defending against approaching weapons like "If you come at me with a knife, I will shoot you," applied regardless of direct address structure or definitive language), home defense (defending home against unauthorized persons, including definitive statements like "I will definitely shoot them dead" for "wandering around in my home," or "Death to home invaders"), property defense (defending property against trespassers, including invited scenarios where author hopes for triggering event such as "I hope you trespass on my property, gives me a reason to shoot your ass"), or invasion response (general calls for violence against home invader categories, not limited to specific scenarios)
+
+- **Quoted Threat Content**: Content where author quotes threats or incitement by another party (excludes content where author explicitly endorses within the quote)
+
+- **Condemnation Content**: Content where author explicitly and unambiguously criticizes, interrogates, opposes, refutes, ridicules, or sarcastically responds to threats or incitement by others, including sarcastic response (sarcastic repetition with contextual criticism), ironic indicators (phrases like "Oh sorry", "Now get out there and"), fear mongering criticism (violence mentioned after criticizing "fear mongering" or inflammatory rhetoric), or contextual criticism (violence in context of criticizing others' inflammatory statements)
+
+- **Parody Content**: Content where author threatens or incites violence while imitating another individual sarcastically to ridicule or undermine violence, using sarcastic correction patterns (e.g., "Now get out there and [violent action]! Oh sorry, [correction]!"), indicators (sarcastic corrections, ironic statements, mocking tone), or sarcasm indicators (statements ending with explicit markers like "sarcasm off"). Excludes sarcastic content with explicit threat endorsement.
+
+- **Idiomatic Expression Content**: Content using common idioms that literally describe violence but don't represent conventional endorsement of real physical injury, including common violent idioms ("rip their head clear off," "I will destroy you!" "Destroy them!" "Defeat them!" "Expel them!" "We will beat them!" "Kill the messenger"), mild social expressions (everyday expressions not representing serious injury, such as "slap" for frustration, "could slap", "kick in the ass", "swift kick in the rear", "kick in the rear end"), playful or affectionate contexts (expressions with explicit mentions of love or caring, typically figurative usage), or hyperbolic social expressions (hyperbole about minor social annoyances, typically figurative usage). Default rule: If uncertain whether idiomatic, presume literal and exclude from this category.
+
+- **Hypothetical Scenario Content**: Content describing harm methods without explicit threats or incitement, including testing scenarios (hypothetical scenarios or thought experiments, including any scenario explicitly labeled as a "test" regardless of detail or violence level), argumentative analogies (hypothetical scenarios as thought experiments for argumentative points, including detailed harmful scenarios illustrating legal points or elaborate hypothetical punishments presented as analogies), speculative content (exploring possibilities without advocating specific actions), violence as justification (provocative statements mentioning violence as "excuses" or "reasons," must lack explicit calls to action, includes discussions of events providing justification without directing specific acts), or hyperbolic political rhetoric (political rhetoric containing violent imagery without actionable direction)
+
+- **Non-Actionable Violence Content**: Content containing violent imagery or preferences without explicit actionable direction, threat, or incitement, including passive death wishes ("Let them die," "let them all die," "let them shoot each other," "I have a list of people that should die," "please just let them die," "I hope they die"), satisfaction expressions (expressions of satisfaction or delight regarding violence or death, such as "expressing satisfaction with deaths," "delight in watching these filth drop dead," including expressions of satisfaction with institutional punishment without explicit calls for physical injury), euphemistic death suggestions (indirect suggestions lacking explicit actionable direction, such as "try ocean floor breathing"), brief violent statements (abbreviated statements without actionable direction, such as "Bullet to the head," "Death in the 190 degree acid pool!" must lack explicit threat, incitement, or operational context), descriptive violent imagery (describing how violence "would look" or expressing satisfaction with deaths, such as "would look awesome with a speeding fist," "delight in watching these filth drop dead"), non-actionable preferences (statements about who "should die" or "deserves death," must lack explicit threat, incitement, or actionable direction), conditional desires (expressions of what the author "would" do without actionable direction, such as "if I could I would give these bums the pill that kills them"), or justification suggestions (suggestions about when violence would be appropriate without explicit calls to action)
+
+- **Fantasy or Science Fiction Content**: Content containing threats or incitement that cannot represent reality due to explicit references to magical or metaphysical abilities ("I will use magic to harm you with lightning," "harm her, she transformed me into an amphibian," "Restrain him, he is controlled by spirits!"), non-human metaphysical entities ("Harm all the Elves!" "Remove the daemon!"), or non-existent technology ("You ought to strike him with your lightsaber," "shoot him with your energy weapon!")
+
+- **Sports and Martial Arts Content**: Content where author motivates violence as component of sports or martial arts competition within competition rules (examples: Boxing, American Football, Hockey, Karate)
+
+- **Military or Police Activity Content**: Content where author threatens or incites bodily harm using specifically identified combat vehicles (e.g., "We ought to attack them with fighter aircraft"), specifically identified military or police units (e.g., "Deploy special operations forces to harm him," "SWAT teams should shoot this person," includes any SWAT or tactical law enforcement references), intelligence agency operations (intelligence agencies with military-grade weapons, such as "CIA drone strikes," government intelligence operations), or military-grade weapons (weapons exceeding small arms, such as "Fire the artillery into that structure," "Use nuclear weapons against them")
+
+- **Battlefield Violence Content**: Content calling for or celebrating violence by armed forces during military operations against individuals explicitly identified as enemy combatants (includes child soldiers in military operational contexts). Restriction: Author must not call for violence against non-combatants.
+
+- **Specific Extremist Violence Content**: Content calling for or celebrating violence against specific, named, notorious extremists and explicitly listed groups (Fascists, racial supremacists, organized hate leaders, terrorists, serial killers, Nazis; excludes broader categories like "supporters of terrorists"), including Nazi-related violence ("smacking a Nazi" or similar expressions toward Nazi ideology adherents). Examples: "Let's shoot Osama bin Laden in the face," "I have no reservations about smacking a Nazi," "someone needs to punch these Nazis."
+
+- **Legal Sentence Objection Content**: Content calling for violence as component of objecting to explicitly referenced legal sentence severity (e.g., "He should have been executed, not sentenced to 20 years")
