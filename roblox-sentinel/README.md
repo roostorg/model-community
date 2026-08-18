@@ -15,7 +15,16 @@
 > fetch the corpora, then run
 > [`examples/sentinel_against_hate.ipynb`](examples/sentinel_against_hate.ipynb), which
 > writes the index to `examples/hate_speech_model/`. The [`tests/`](tests) suite needs
-> neither directory.
+> neither directory. One consequence:
+> [`examples/Example_Threshold_Script.py`](examples/Example_Threshold_Script.py) defaults
+> to that index, so build it before running the script or pass a different path.
+>
+> `.pre-commit-config.yaml` and `.github/workflows/` are omitted too, since neither takes
+> effect from a subdirectory. So where [CONTRIBUTING.md](CONTRIBUTING.md) and
+> [docs/README.md](docs/README.md) refer to pre-commit hooks or a CI pipeline that checks
+> the documentation, they are describing the upstream repository, not this copy. Avoid
+> running `pre-commit install` here: it would install hooks into the enclosing
+> repository, not just this folder.
 
 ## Overview
 
