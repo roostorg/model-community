@@ -1,0 +1,57 @@
+# Sentinel container image (CPU-only variant).
+#
+# Same as the default `Dockerfile`, but installs the CPU-only build of torch
+# instead of the default CUDA/GPU build. Sentinel's code does not use a GPU, so
+# for most deployments this is all you need -- and it produces a MUCH smaller
+# image (the default GPU build pulls in ~5-6 GB of NVIDIA CUDA libraries that
+# never get used on CPU).
+#
+# Build it explicitly with the -f flag:
+#   docker build -f Dockerfile.cpu -t sentinel:cpu .
+#
+# Note: unlike the default Dockerfile (which uses Poetry + poetry.lock for a
+# fully pinned install), this variant installs with pip so it can pull torch
+# from the dedicated PyTorch CPU package index. That means it is not locked to
+# poetry.lock; it resolves compatible versions at build time.
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/home/sentinel/.cache/huggingface
+
+# build-essential lets pip compile any dependency that isn't shipped as a
+# pre-built wheel. It can be dropped if every dependency installs from a wheel.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install the CPU-only torch FIRST, from PyTorch's dedicated CPU index. Doing
+# this before installing sentinel means the later install sees a compatible
+# torch already present and won't replace it with the default (GPU) build.
+RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.3.0,<3.0.0"
+
+# Copy the metadata + source needed to build/install the package.
+COPY pyproject.toml README.md ./
+COPY src ./src
+
+# Install sentinel plus the `sbert` extra (sentence-transformers). torch is
+# already satisfied by the CPU build above, so it stays CPU-only. Other deps
+# come from regular PyPI.
+RUN pip install ".[sbert]"
+
+# Copy the remaining source (examples, tests, docs, etc.).
+COPY . .
+
+# Run as a non-root user for safety.
+RUN useradd --create-home sentinel \
+    && mkdir -p "$HF_HOME" \
+    && chown -R sentinel:sentinel /app /home/sentinel
+USER sentinel
+
+# By default, run the beginner demo end-to-end. Override this at `docker run`
+# time to run your own script, e.g.:
+#   docker run --rm sentinel:cpu python examples/Example_Threshold_Script.py
+CMD ["python", "examples/beginner_demo.py"]

@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vim and emacs files
+*~
+*.swp
+*.swo
+.DS_Store
+.ipynb_checkpoints/

@@ -1,0 +1,24 @@
+# Keep the Docker build context small and avoid copying host-only artifacts.
+.git
+.github
+.venv
+.vscode
+docs/_build
+
+# Python caches / build outputs
+**/__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ipynb_checkpoints
+
+# OS / editor cruft
+.DS_Store
+*~
+*.swp
+*.swo
+
+# The Docker files themselves
+Dockerfile
+.dockerignore

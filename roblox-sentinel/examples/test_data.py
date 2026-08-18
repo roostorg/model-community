@@ -1,0 +1,140 @@
+"""
+Test data for Sentinel hate speech detection testing.
+
+This module contains example text samples used for testing different
+user behavior patterns and model performance evaluation.
+"""
+
+# Normal speech examples (50 examples)
+NORMAL_SPEECH = [
+    "Hey how are you doing today?",
+    "What are you up to this weekend?",
+    "I love this new video game",
+    "The weather is really nice today",
+    "Did you see that movie last night?",
+    "I'm going to the store later",
+    "Work was pretty busy today",
+    "Let's grab lunch sometime",
+    "That's a really cool picture",
+    "I just finished reading a great book",
+    "How was your vacation?",
+    "I'm excited for the weekend",
+    "Thanks for helping me out",
+    "Have a great day!",
+    "What's your favorite food?",
+    "I'm learning to cook pasta",
+    "The concert was amazing",
+    "I need to go shopping",
+    "My family is visiting next week",
+    "That joke was hilarious",
+    "Good morning everyone!",
+    "Hope you have a wonderful day",
+    "The traffic is terrible today",
+    "I can't wait for summer vacation",
+    "My dog learned a new trick",
+    "This coffee tastes really good",
+    "I'm thinking about changing my major",
+    "The new restaurant downtown is excellent",
+    "Can you help me with this project?",
+    "I love spending time with friends",
+    "The sunset looks beautiful tonight",
+    "I'm so tired after that workout",
+    "What time does the meeting start?",
+    "I need to call my parents later",
+    "This song always makes me happy",
+    "The library closes at 9 PM",
+    "I'm planning a surprise party",
+    "The game was really exciting",
+    "I should probably get some sleep",
+    "Thanks for the recommendation!",
+    "The presentation went really well",
+    "I have a test tomorrow morning",
+    "Our team won the championship",
+    "I'm working on a new project",
+    "The deadline is next Friday",
+    "Class was cancelled today",
+    "I got a promotion at work",
+    "The professor explained it clearly",
+    "We're having a team building event",
+    "I need to finish my homework"
+]
+
+# Hate speech examples (50 examples)
+HATE_SPEECH = [
+    "I hate all those people",
+    "they don't belong here",
+    "those immigrants are ruining everything",
+    "whites are superior to everyone else",
+    "the holocaust never happened",
+    "Hitler had the right idea",
+    "Jews control all the banks",
+    "Black people are all criminals",
+    "Muslims are all terrorists",
+    "gay people are disgusting",
+    "women belong in the kitchen",
+    "trans people are mentally ill",
+    "minorities are destroying our country",
+    "we need to get rid of them all",
+    "violence is the only solution",
+    "send them back where they came from",
+    "these people are inferior",
+    "our race is under attack",
+    "foreigners are taking our jobs",
+    "they're destroying our culture",
+    "we need to protect our bloodline",
+    "those degenerates deserve punishment",
+    "purify our society",
+    "ethnic cleansing is necessary",
+    "they're subhuman scum",
+    "women are naturally inferior",
+    "homosexuality is a disease",
+    "immigrants bring crime and drugs",
+    "they're invading our homeland",
+    "death to all enemies",
+    "burn down their neighborhoods",
+    "exterminate the vermin",
+    "racial purity must be maintained",
+    "they're parasites on society",
+    "violence against them is justified",
+    "eliminate the weak",
+    "crush the opposition",
+    "our people are the chosen ones",
+    "they pollute our gene pool",
+    "terrorism against them is acceptable",
+    "wipe them off the face of earth",
+    "they're a cancer on humanity",
+    "breed them out of existence",
+    "no mercy for the inferior",
+    "cleanse our nation",
+    "they deserve to suffer",
+    "hatred is the only answer",
+    "destroy their way of life",
+    "they're animals not humans",
+    "final solution needed"
+]
+
+"""
+Requires an index with sexual positive examples, current database only
+focuses on hate-speech.
+As such information relating to sexual content has been removed from the
+codebase but can be added back by removing notes.
+"""
+
+SEXUAL_CONTENT = [
+    "want to see me naked?",
+    "send me some hot pics",
+    "let's hook up tonight",
+    "I'm so horny right now",
+    "what are you wearing?",
+    "wanna have some fun?",
+    "you look so sexy",
+    "let's get physical",
+    "I want to touch you",
+    "meet me in private",
+    "show me your body",
+    "let's talk dirty",
+    "I'm thinking about you",
+    "we could be alone together",
+    "send nudes",
+]
+
