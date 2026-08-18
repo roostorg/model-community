@@ -19,6 +19,7 @@ You can browse the current resources directly on GitHub:
 - [cope-b/](cope-b): Resources and projects related to Zentropi's bring your own policy safety model
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to OpenAI's bring your own policy safety reasoning model
 - [mila/](mila): Resources and projects related to Mila's suicide-asisstance prevention guardrail
+- [shieldstral/](https://github.com/roostorg/model-community/blob/main/shieldstral): Resources and projects related to Mistral AI's policy-adaptive, multimodal safety classifier
 - [projects/](projects): Interesting demos that are not RMC-model-specific
 - [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
   - [RMC Guide to Using Open Safety Models](resources/RMC%20Guide%20to%20Using%20Open%20Safety%20Models.md) — an introduction to applying open safety models across the Detection, Investigation, Review, and Enforcement stages of a T&S architecture
@@ -62,6 +63,7 @@ Although there are many open safety models, we hold a specific bar for RMC Partn
 - Mila: [Mila-Suicide-Prevention-Output-Guardrail](https://huggingface.co/mila-ai4h/Mila-Suicide-Prevention-Output-Guardrail)
 - OpenAI: [gpt-oss-safeguard](https://huggingface.co/collections/openai/gpt-oss-safeguard)
 - Zentropi: [CoPE-B-A4B](https://huggingface.co/zentropi-ai/cope-b-a4b)
+- Mistral AI: [Shieldstral-1.0](https://huggingface.co/mistralai/Shieldstral-1.0)
 
 RMC Partners receive a variety of benefits, including:
 
