@@ -19,6 +19,7 @@ You can browse the current resources directly on GitHub:
 - [cope-b/](cope-b): Resources and projects related to Zentropi's bring your own policy safety model
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to OpenAI's bring your own policy safety reasoning model
 - [mila/](mila): Resources and projects related to Mila's suicide-asisstance prevention guardrail
+- [roblox-voice-safety-classifier/](roblox-voice-safety-classifier): Resources related to Roblox's voice safety classifier
 - [projects/](projects): Interesting demos that are not RMC-model-specific
 - [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
   - [RMC Guide to Using Open Safety Models](resources/RMC%20Guide%20to%20Using%20Open%20Safety%20Models.md) — an introduction to applying open safety models across the Detection, Investigation, Review, and Enforcement stages of a T&S architecture
