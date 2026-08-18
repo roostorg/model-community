@@ -60,6 +60,10 @@ Sentinel includes multiple aggregation strategies and built‑in explainability 
         - `aggregation_name`, `aggregation_stats`: which aggregator was used and key params
         - `explanations`: per‑text details including top‑K positive/negative similarities, contrastive components, and neighbor snippets (when available)
 
+## Previous Release (v1)
+
+- [Roblox Technical Announcement](https://about.roblox.com/newsroom/2025/08/open-sourcing-roblox-sentinel-preemptive-risk-detection)
+
 ## Terminology
 
 In Sentinel's codebase:
