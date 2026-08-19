@@ -20,6 +20,8 @@ You can browse the current resources directly on GitHub:
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to OpenAI's bring your own policy safety reasoning model
 - [mila/](mila): Resources and projects related to Mila's suicide-asisstance prevention guardrail
 - [roblox-sentinel/](roblox-sentinel): Resources and links related to Roblox's Sentinel, a Python library for detecting extremely rare classes of text
+- [roblox-voice-safety-classifier/](roblox-voice-safety-classifier): Resources related to Roblox's voice safety classifier
+- [roblox-pii-classifier/](roblox-pii-classifier): Resources and projects related to Roblox's chat-based PII classifiers
 - [Shieldstral 1.0 3B](shieldstral): Resources and links related to Mistral's Shieldstral 1.0 3B model
 - [projects/](projects): Interesting demos that are not RMC-model-specific
 - [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
