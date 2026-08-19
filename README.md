@@ -19,7 +19,10 @@ You can browse the current resources directly on GitHub:
 - [cope-b/](cope-b): Resources and projects related to Zentropi's bring your own policy safety model
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to OpenAI's bring your own policy safety reasoning model
 - [mila/](mila): Resources and projects related to Mila's suicide-asisstance prevention guardrail
-- [shieldstral/](https://github.com/roostorg/model-community/blob/main/shieldstral): Resources and projects related to Mistral AI's policy-adaptive, multimodal safety classifier
+- [roblox-sentinel/](roblox-sentinel): Resources and links related to Roblox's Sentinel, a Python library for detecting extremely rare classes of text
+- [roblox-voice-safety-classifier/](roblox-voice-safety-classifier): Resources related to Roblox's voice safety classifier
+- [roblox-pii-classifier/](roblox-pii-classifier): Resources and projects related to Roblox's chat-based PII classifiers
+- [shieldstral/](shieldstral): Resources and links related to Mistral's policy-adaptive multimodal safety classifier
 - [projects/](projects): Interesting demos that are not RMC-model-specific
 - [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
   - [RMC Guide to Using Open Safety Models](resources/RMC%20Guide%20to%20Using%20Open%20Safety%20Models.md) — an introduction to applying open safety models across the Detection, Investigation, Review, and Enforcement stages of a T&S architecture

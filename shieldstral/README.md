@@ -1,22 +1,14 @@
 # Shieldstral
 
-Resources and projects related to Mistral AI's Shieldstral, a policy-adaptive, multimodal safety classifier.
+Resources related to Mistral AI's Shieldstral, a policy-adaptive, multimodal safety classifier.
+
+- [Download Shieldstral 1.0 3B on HuggingFace](https://huggingface.co/mistralai/Shieldstral-1.0-3B)
+- [Mistral Announcement](https://mistral.ai/news/shieldstral/)
+- [ROOST Announcement](https://roost.tools/blog/mistral-shieldstral-joins-the-RMC/)
+- [Model Card](https://huggingface.co/mistralai/Shieldstral-1.0-3B)
+- [Technical report](https://arxiv.org/abs/2607.25857)
 
 Shieldstral is a 3B-parameter open-weight (Apache 2.0) classifier that flags harmful inputs and outputs across text and images. Moderation is cast as a single yes/no question: you supply a natural-language policy at inference time and the model returns a safety score, so the same weights serve any operator-defined policy without retraining.
-
-## At a glance
-
-| | |
-| --- | --- |
-| **Partner** | Mistral AI |
-| **Model** | [Shieldstral-1.0](https://huggingface.co/mistralai/Shieldstral-1.0) |
-| **License** | Apache 2.0 |
-| **Parameters** | 3B |
-| **Modality** | Text and image |
-| **Output** | Safety score (probability of "yes"), thresholded for a binary decision |
-| **Policy interface** | Natural-language query at inference (`<Instruct>`, `<Query>`, `<Document>`) |
-| **Model card** | https://docs.mistral.ai/models/model-cards/shieldstral-1-0 |
-| **Paper** | https://arxiv.org/abs/2607.25857 |
 
 ## How it works
 
@@ -43,10 +35,3 @@ Shieldstral is policy-adaptive: it takes an operator-defined policy at inference
 2. **Steerability** — does it follow the *specific* policy you supply, rather than falling back on the priors it learned in training?
 
 These can diverge, and community evaluations to date report different results depending on which is being measured and how policies are phrased. Contributions of evaluation outcomes on both dimensions are especially welcome; add them under [`evaluations/`](./evaluations).
-
-## Links
-
-- Announcement blog: TODO (roost.tools link once published)
-- Mistral model card: https://docs.mistral.ai/models/model-cards/shieldstral-1-0
-- Technical report: https://arxiv.org/abs/2607.25857
-- Weights: https://huggingface.co/mistralai/Shieldstral-1.0
