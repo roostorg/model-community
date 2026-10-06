@@ -1,8 +1,8 @@
-# Choosing and Routing Open Safety Models: A Practitioner’s Guide
+# Choosing and Routing Open Safety Models
 
 Contributors:
-- Musubi: Alice Hunsberger, Juliet Jonak, additional research by Nikki Marinsek
 - ROOST: Jeremie Ponak
+- Musubi: Alice Hunsberger, Juliet Jonak, additional research by Nikki Marinsek
 
 [PDF version](choosing-and-routing-open-safety-models.pdf)
 
