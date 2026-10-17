@@ -144,9 +144,8 @@ Response:"""
                 raise ImportError("Anthropic library not installed")
             client = anthropic.Anthropic(api_key=api_keys.get('ANTHROPIC_API_KEY'))
             response = client.messages.create(
-                model="claude-3-haiku-20240307",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=500,
-                temperature=0.7,
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
