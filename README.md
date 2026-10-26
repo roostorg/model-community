@@ -91,5 +91,5 @@ Traditional open source development works well for software, but AI models prese
 Our community brings the open access and community spirit of open source software development to AI models, made possible by partnership with AI researchers and model creators. These partners commit to developing and openly releasing the weights of safety-finetuned models that are free to access, platform-agnostic in deployment, and have no commercial or output restrictions in their licenses. They also actively participate in the community, gathering feedback from practitioners and supporting their implementation journeys. In turn, ROOST cultivates a vibrant community-of-practice where safety teams share knowledge and strategies for successfully deploying these models in real-world scenarios.
 
 [discord server]: https://discord.gg/UXmBqy7kFX
-[eligibility criteria]: https://docs.google.com/spreadsheets/d/1gkRwjCYFlYrah1WBZu96iWzAVUj555WO4rxR5NswzEI/edit?gid=667042538#gid=667042538
+[eligibility criteria]: eligibility-criteria.md
 [open an issue]: https://github.com/roostorg/model-community/issues
