@@ -16,8 +16,7 @@ This repository serves as the home to find resources for the community, includin
 
 You can browse the current resources directly on GitHub:
 
-- [cope-b/](cope-b): Resources and projects related to Zentropi's bring your own policy safety model
-- [cope-b-s1/](cope-b-s1): Resources and projects related to Zentropi's safety-tuned decision model that speaks the System One spec
+- [cope-b/](cope-b): Resources and projects related to Zentropi's bring your own policy safety models
 - [gpt-oss-safeguard/](gpt-oss-safeguard): Resources and projects related to OpenAI's bring your own policy safety reasoning model
 - [mila/](mila): Resources and projects related to Mila's suicide-asisstance prevention guardrail
 - [musubi-policylm/](musubi-policylm): Resources and projects related to Musubi's policy-conditioned content moderation classifier
