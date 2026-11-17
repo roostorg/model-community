@@ -28,6 +28,7 @@ You can browse the current resources directly on GitHub:
 - [roblox-pii-classifier/](roblox-pii-classifier): Resources and projects related to Roblox's chat-based PII classifiers
 - [roblox-sentinel/](roblox-sentinel): Resources and links related to Roblox's Sentinel, a Python library for detecting extremely rare classes of text
 - [roblox-voice-safety-classifier/](roblox-voice-safety-classifier): Resources related to Roblox's voice safety classifier
+- [sea-lion-guard-v2/](sea-lion-guard-v2): Resources and links related to AI Singapore's safety models for Southeast Asia, covering content moderation and action governance
 - [shieldstral/](shieldstral): Resources and links related to Mistral's policy-adaptive multimodal safety classifier
 
 ## Join us!
@@ -64,6 +65,7 @@ Although there are many open safety models, we hold a specific bar for RMC Partn
 
 ## RMC Partners
 
+- AI Singapore: [SEA-LION-Guard-v2](https://huggingface.co/collections/aisingapore/sea-lion-guard-v2)
 - Mila: [Mila-Suicide-Prevention-Output-Guardrail](https://huggingface.co/mila-ai4h/Mila-Suicide-Prevention-Output-Guardrail)
 - Mistral: [Shieldstral-1.0-3B](https://huggingface.co/mistralai/Shieldstral-1.0-3B)
 - Musubi Labs: [PolicyLM-1.7B](https://huggingface.co/musubilabs/policylm-1.7b)
