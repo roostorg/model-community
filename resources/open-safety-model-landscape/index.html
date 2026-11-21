@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open safety model landscape</title>
+<style>
+  :root {
+    --bg: #222c14;
+    --fg: #f6f4ea;
+    --muted: rgba(246, 244, 234, 0.55);
+    --faint: rgba(246, 244, 234, 0.35);
+    --fixed: rgba(246, 244, 234, 0.30);
+    --single-pass: #f0ef45;
+    --reasoning: #ef9f6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: Montserrat, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.75rem; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 8px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--single-pass); }
+  .lede { color: var(--muted); max-width: 70ch; }
+  fieldset { border: 0; padding: 0; margin: 16px 0 8px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+  .ring { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1.2px dashed var(--muted); }
+  .note { color: var(--muted); font-size: 0.9rem; }
+  .chart { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  svg a:focus { outline: none; }
+  svg a:focus .dot, svg a:hover .dot { stroke: var(--fg); stroke-width: 2; }
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    max-width: 280px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #10160a;
+    border: 1px solid var(--faint);
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip strong { display: block; font-size: 0.95rem; }
+  .tooltip span { display: block; color: var(--muted); }
+  .error { padding: 16px; border: 1px solid var(--reasoning); border-radius: 6px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--faint); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Open safety models are specializing</h1>
+  <p class="lede">
+    Open safety models plotted by how much compute a single decision takes and how much of the
+    reasoning behind that decision they show. Hover or focus a model for details, or select it to
+    open its model card. The chart is drawn from <a href="models.csv">models.csv</a> in this folder.
+  </p>
+
+  <fieldset id="filters">
+    <legend>Show model types</legend>
+  </fieldset>
+  <p class="note"><span class="ring" aria-hidden="true"></span> Dashed ring: accepts images. Bubble area: total parameters.</p>
+
+  <div class="chart" id="chart">
+    <svg id="plot" viewBox="0 0 1200 660" role="img" aria-labelledby="plot-title">
+      <title id="plot-title">Scatter plot of open safety models by efficiency and decision transparency</title>
+      <defs>
+        <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="rgba(246,244,234,0.45)"/>
+        </marker>
+      </defs>
+      <line x1="130" y1="600" x2="1140" y2="600" stroke="rgba(246,244,234,0.35)" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <line x1="130" y1="600" x2="130" y2="40" stroke="rgba(246,244,234,0.35)" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <text x="130" y="634" fill="rgba(246,244,234,0.55)" font-size="12">← more efficient</text>
+      <text x="1140" y="634" fill="rgba(246,244,234,0.55)" font-size="12" text-anchor="end">more compute-intensive →</text>
+      <text x="635" y="635" fill="rgba(246,244,234,0.7)" font-size="15" font-weight="600" text-anchor="middle">Efficiency</text>
+      <text x="40" y="320" fill="rgba(246,244,234,0.7)" font-size="15" font-weight="600" text-anchor="middle" transform="rotate(-90 40 320)">Decision transparency</text>
+      <text x="60" y="46" fill="rgba(246,244,234,0.55)" font-size="12" text-anchor="end" transform="rotate(-90 60 46)">reasoning trace ↑</text>
+      <text x="60" y="594" fill="rgba(246,244,234,0.55)" font-size="12" transform="rotate(-90 60 594)">↓ decision only</text>
+      <g id="points"></g>
+    </svg>
+    <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+  </div>
+
+  <p class="note">
+    Positions reflect each model's design, not measured latency or benchmark results. Cost per call is
+    driven by how much a model generates per decision (one token, a short label, or a full reasoning
+    trace) and by model size. Steerable models take your own policy at inference time; fixed-taxonomy
+    models classify against the categories they were trained on.
+  </p>
+
+  <h2>Data</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Model</th><th>Developer</th><th>Year</th><th>Type</th><th>Images</th><th>Parameters</th><th>Notes</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA_URL = "models.csv";
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  // Plot area inside the 1200x660 viewBox.
+  var X0 = 130, X1 = 1140, Y0 = 600, Y1 = 60;
+  // Bubble radius = RADIUS_SCALE * sqrt(total parameters in billions), so area tracks size.
+  var RADIUS_SCALE = 3.4;
+
+  var APPROACHES = [
+    { id: "fixed-taxonomy", label: "Fixed taxonomy", color: "rgba(246,244,234,0.30)", text: "rgba(246,244,234,0.55)" },
+    { id: "steerable-single-pass", label: "Steerable, single-pass", color: "#f0ef45", text: "#f6f4ea" },
+    { id: "steerable-reasoning", label: "Steerable, reasoning", color: "#ef9f6a", text: "#f6f4ea" }
+  ];
+  var byId = {};
+  APPROACHES.forEach(function (a) { byId[a.id] = a; });
+
+  var enabled = {};
+  var models = [];
+
+  // Minimal RFC 4180 CSV parser: handles quoted fields, escaped quotes and CRLF line endings.
+  function parseCSV(text) {
+    var rows = [], row = [], field = "", inQuotes = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else { field += c; }
+      } else if (c === '"') { inQuotes = true; }
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") { i++; }
+        row.push(field); rows.push(row); row = []; field = "";
+      } else { field += c; }
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    rows = rows.filter(function (r) { return r.some(function (v) { return v.trim() !== ""; }); });
+    var header = rows.shift().map(function (h) { return h.trim(); });
+    return rows.map(function (r) {
+      var obj = {};
+      header.forEach(function (h, j) { obj[h] = (r[j] || "").trim(); });
+      return obj;
+    });
+  }
+
+  function toModel(r) {
+    var m = {
+      model: r.model,
+      developer: r.developer,
+      year: r.year,
+      approach: r.approach,
+      images: r.accepts_images.toLowerCase() === "yes",
+      params: parseFloat(r.params_b),
+      active: r.active_params_b ? parseFloat(r.active_params_b) : null,
+      efficiency: parseFloat(r.efficiency),
+      transparency: parseFloat(r.transparency),
+      labelAbove: r.label_pos === "above",
+      link: r.link,
+      note: r.note
+    };
+    var ok = m.model && byId[m.approach] && m.params > 0 &&
+      m.efficiency >= 0 && m.efficiency <= 1 && m.transparency >= 0 && m.transparency <= 1;
+    if (!ok) { console.warn("Skipping invalid row in " + DATA_URL + ":", r); return null; }
+    return m;
+  }
+
+  function el(name, attrs, text) {
+    var node = document.createElementNS(SVG_NS, name);
+    Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    if (text) { node.textContent = text; }
+    return node;
+  }
+
+  function shortYear(year) { return "’" + String(year).slice(-2); }
+
+  function paramsText(m) {
+    return m.params + "B" + (m.active ? " total, " + m.active + "B active" : "");
+  }
+
+  function describe(m) {
+    return m.model + " (" + m.developer + ", " + m.year + "). " + byId[m.approach].label + ". " +
+      (m.images ? "Accepts images. " : "") + paramsText(m) + " parameters." + (m.note ? " " + m.note : "");
+  }
+
+  var tooltip = document.getElementById("tooltip");
+  var chart = document.getElementById("chart");
+
+  function showTooltip(m, target) {
+    tooltip.innerHTML = "";
+    var title = document.createElement("strong");
+    title.textContent = m.model;
+    tooltip.appendChild(title);
+    [m.developer + " · " + m.year, byId[m.approach].label, (m.images ? "Text and images" : "Text only"),
+      paramsText(m) + " parameters", m.note].forEach(function (line) {
+      if (!line) { return; }
+      var s = document.createElement("span");
+      s.textContent = line;
+      tooltip.appendChild(s);
+    });
+    var box = target.getBoundingClientRect();
+    var host = chart.getBoundingClientRect();
+    var left = box.left - host.left + box.width / 2 + 12;
+    var top = box.top - host.top - 8;
+    tooltip.classList.add("visible");
+    if (left + tooltip.offsetWidth > host.width) { left = box.left - host.left - tooltip.offsetWidth - 12; }
+    tooltip.style.left = Math.max(0, left) + "px";
+    tooltip.style.top = Math.max(0, top) + "px";
+  }
+
+  function hideTooltip() { tooltip.classList.remove("visible"); }
+
+  function renderPoints() {
+    var group = document.getElementById("points");
+    group.innerHTML = "";
+    hideTooltip();
+    // Draw large bubbles first so small ones stay clickable on top.
+    models.slice().sort(function (a, b) { return b.params - a.params; }).forEach(function (m) {
+      if (!enabled[m.approach]) { return; }
+      var a = byId[m.approach];
+      var cx = X0 + m.efficiency * (X1 - X0);
+      var cy = Y0 - m.transparency * (Y0 - Y1);
+      var r = RADIUS_SCALE * Math.sqrt(m.params);
+      var link = el("a", { href: m.link, target: "_blank", rel: "noopener", "aria-label": describe(m) });
+      if (m.images) {
+        link.appendChild(el("circle", { cx: cx, cy: cy, r: r + 5, fill: "none",
+          stroke: "rgba(246,244,234,0.6)", "stroke-width": 1.2, "stroke-dasharray": "3 3.5" }));
+      }
+      var dot = el("circle", { "class": "dot", cx: cx, cy: cy, r: r, fill: a.color });
+      link.appendChild(dot);
+      var offset = r + (m.images ? 5 : 0) + 6;
+      link.appendChild(el("text", {
+        x: cx, y: m.labelAbove ? cy - offset : cy + offset + 11,
+        fill: a.text, "font-size": 12.5, "font-weight": 500, "text-anchor": "middle"
+      }, m.model + " · " + shortYear(m.year)));
+      link.addEventListener("mouseenter", function () { showTooltip(m, dot); });
+      link.addEventListener("focus", function () { showTooltip(m, dot); });
+      link.addEventListener("mouseleave", hideTooltip);
+      link.addEventListener("blur", hideTooltip);
+      group.appendChild(link);
+    });
+  }
+
+  function renderTable() {
+    var body = document.getElementById("rows");
+    body.innerHTML = "";
+    models.forEach(function (m) {
+      var tr = document.createElement("tr");
+      var name = document.createElement("td");
+      var a = document.createElement("a");
+      a.href = m.link;
+      a.textContent = m.model;
+      name.appendChild(a);
+      tr.appendChild(name);
+      [m.developer, m.year, byId[m.approach].label, m.images ? "Yes" : "No", paramsText(m), m.note]
+        .forEach(function (v) {
+          var td = document.createElement("td");
+          td.textContent = v || "";
+          tr.appendChild(td);
+        });
+      body.appendChild(tr);
+    });
+  }
+
+  function renderFilters() {
+    var fs = document.getElementById("filters");
+    APPROACHES.forEach(function (a) {
+      enabled[a.id] = true;
+      var label = document.createElement("label");
+      var box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = true;
+      box.addEventListener("change", function () { enabled[a.id] = box.checked; renderPoints(); });
+      var swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = a.color;
+      label.appendChild(box);
+      label.appendChild(swatch);
+      label.appendChild(document.createTextNode(a.label));
+      fs.appendChild(label);
+    });
+  }
+
+  renderFilters();
+  fetch(DATA_URL)
+    .then(function (res) {
+      if (!res.ok) { throw new Error("HTTP " + res.status); }
+      return res.text();
+    })
+    .then(function (text) {
+      models = parseCSV(text).map(toModel).filter(Boolean);
+      renderPoints();
+      renderTable();
+    })
+    .catch(function (err) {
+      var msg = document.createElement("p");
+      msg.className = "error";
+      msg.textContent = "Could not load " + DATA_URL + " (" + err.message + "). Browsers block loading " +
+        "local files, so serve this folder over HTTP, e.g. `python3 -m http.server`, and open " +
+        "http://localhost:8000/.";
+      chart.replaceWith(msg);
+    });
+})();
+</script>
+</body>
+</html>

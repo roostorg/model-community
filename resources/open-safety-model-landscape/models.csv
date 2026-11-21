@@ -1,0 +1,14 @@
+model,developer,year,approach,accepts_images,params_b,active_params_b,efficiency,transparency,label_pos,link,note
+Shieldstral,Mistral AI,2026,steerable-single-pass,yes,3,,0.08,0.18,below,https://huggingface.co/mistralai/Shieldstral-1.0-3B,
+ShieldGemma 2,Google,2025,steerable-single-pass,yes,4,,0.13,0.25,above,https://huggingface.co/google/shieldgemma-2-4b-it,
+CoPE-A,Zentropi,2025,steerable-single-pass,no,9,,0.22,0.14,below,https://huggingface.co/zentropi-ai/cope-a-9b,
+ShieldGemma,Google,2024,steerable-single-pass,no,9,,0.20,0.27,below,https://huggingface.co/google/shieldgemma-9b,
+CoPE-B,Zentropi,2026,steerable-single-pass,yes,25,3.8,0.29,0.21,above,https://huggingface.co/zentropi-ai/cope-b-a4b,The text classifier is open weights; its multimodal variant is subscriber-only.
+WildGuard,Ai2,2024,fixed-taxonomy,no,7,,0.14,0.39,above,https://huggingface.co/allenai/wildguard,
+PolyGuard,Kumar et al.,2025,fixed-taxonomy,no,7,,0.21,0.33,above,https://huggingface.co/ToxicityPrompts/PolyGuard-Qwen,
+Qwen3Guard,Alibaba Qwen,2025,fixed-taxonomy,no,8,,0.24,0.45,above,https://huggingface.co/Qwen/Qwen3Guard-Gen-8B,
+CultureGuard,NVIDIA,2025,fixed-taxonomy,no,8,,0.31,0.37,below,https://huggingface.co/nvidia/Llama-3.1-Nemotron-Safety-Guard-8B-v3,
+Llama Guard 4,Meta,2025,fixed-taxonomy,yes,12,,0.37,0.47,below,https://huggingface.co/meta-llama/Llama-Guard-4-12B,
+OmniGuard,Zhu et al.,2025,fixed-taxonomy,yes,7,,0.50,0.60,below,https://arxiv.org/abs/2512.02306,Reasons against a fixed taxonomy.
+gpt-oss-safeguard-20b,OpenAI,2025,steerable-reasoning,no,21,3.6,0.82,0.86,below,https://huggingface.co/openai/gpt-oss-safeguard-20b,Cost comes from the length of the reasoning trace rather than model size.
+Nemotron-3.5-Safety,NVIDIA,2026,steerable-reasoning,yes,4,,0.66,0.76,below,https://huggingface.co/nvidia/Nemotron-3.5-Content-Safety,Reasoning is optional.

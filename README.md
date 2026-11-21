@@ -25,6 +25,7 @@ You can browse the current resources directly on GitHub:
 - [resources/](resources): Community-wide resources for using open safety models, not tied to any single RMC Partner. Includes:
   - [RMC Guide to Using Open Safety Models](resources/RMC%20Guide%20to%20Using%20Open%20Safety%20Models.md) — an introduction to applying open safety models across the Detection, Investigation, Review, and Enforcement stages of a T&S architecture
   - [policy-packs/](resources/policy-packs) — partner-contributed policy prompt packs, organized by submitter, that can be used directly with policy-following open safety models
+  - [open-safety-model-landscape/](resources/open-safety-model-landscape) — an interactive chart of open safety models by efficiency and decision transparency, drawn from an editable dataset
   - Other code snippets and supplementary materials for non-RMC models
 - [roblox-pii-classifier/](roblox-pii-classifier): Resources and projects related to Roblox's chat-based PII classifiers
 - [roblox-sentinel/](roblox-sentinel): Resources and links related to Roblox's Sentinel, a Python library for detecting extremely rare classes of text
